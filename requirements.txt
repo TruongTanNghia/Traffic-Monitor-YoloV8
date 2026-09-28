@@ -1,0 +1,14 @@
+# Core (theo đặc tả)
+PySide6>=6.6
+opencv-python>=4.8          # >= 4.5.4 cho CAP_PROP_OPEN_TIMEOUT_MSEC (RTSP)
+numpy>=1.24
+supervision>=0.26
+ultralytics>=8.1
+PyYAML>=6.0
+
+# Bổ sung
+python-dotenv>=1.0          # nạp .env: TM_DEVICE, TM_LOG_LEVEL, TM_RTSP_URL (không đưa mật khẩu RTSP vào code)
+pytest>=8.0                 # unit test (tests/)
+
+# GPU: ultralytics cài torch bản CPU theo mặc định. Để chạy trên GPU NVIDIA, cài torch CUDA TRƯỚC:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124

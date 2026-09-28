@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.pytest_cache/
+.idea/
+.vscode/
+
+# runtime files
+config.yaml
+logs/*.log*
+data/output/**
+!data/output/**/
+!data/output/**/.gitkeep
+data/input/*
+!data/input/.gitkeep
+
+# large binaries
+models/*.pt
+data/samples/*.mp4

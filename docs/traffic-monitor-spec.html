@@ -1,0 +1,2006 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traffic Monitor Spec</title>
+<meta name="description" content="Tài liệu đặc tả kỹ thuật Traffic Monitor Desktop (Bài 9) — kiến trúc, module, dữ liệu, GUI, xử lý lỗi, kiểm thử, kế hoạch triển khai và UI demo tương tác.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f4f0; --surface:#ffffff; --surface-2:#efede7; --border:#dcd8cf; --border-strong:#c9c4b8;
+  --text:#1b1e22; --muted:#5d636b; --faint:#8a9097;
+  --accent:#a86b12; --accent-soft:#f4e7d0; --accent-line:#e2c48f;
+  --ok:#2d7f52; --ok-soft:#dcefe3; --err:#b83b3b; --err-soft:#f6dede; --info:#2c6aa6; --info-soft:#dce8f4;
+  --code-bg:#1b1f24; --code-text:#e2e5e9; --code-muted:#8b949e; --code-key:#e0b56a; --code-str:#9cc79a; --code-kw:#8fb4e0;
+  --shadow:0 1px 2px rgba(0,0,0,.05);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101215; --surface:#16191d; --surface-2:#1c2025; --border:#2a2f36; --border-strong:#3a4049;
+    --text:#dde1e6; --muted:#9098a2; --faint:#6b737d;
+    --accent:#e0a93e; --accent-soft:#2f2616; --accent-line:#6b5226;
+    --ok:#5dbb87; --ok-soft:#16281e; --err:#e06c6c; --err-soft:#2e1818; --info:#6ea8e0; --info-soft:#162434;
+    --code-bg:#0b0d0f; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101215; --surface:#16191d; --surface-2:#1c2025; --border:#2a2f36; --border-strong:#3a4049;
+  --text:#dde1e6; --muted:#9098a2; --faint:#6b737d;
+  --accent:#e0a93e; --accent-soft:#2f2616; --accent-line:#6b5226;
+  --ok:#5dbb87; --ok-soft:#16281e; --err:#e06c6c; --err-soft:#2e1818; --info:#6ea8e0; --info-soft:#162434;
+  --code-bg:#0b0d0f; --shadow:none;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--info);text-decoration:none} a:hover{text-decoration:underline}
+code,kbd,pre{font-family:var(--mono)}
+:not(pre)>code{font-size:.86em;background:var(--surface-2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;white-space:nowrap}
+h1,h2,h3,h4{line-height:1.25;margin:0}
+h2{font-size:1.45rem;font-weight:600;letter-spacing:-.01em}
+h3{font-size:1.08rem;font-weight:600;margin:28px 0 10px}
+h4{font-size:.95rem;font-weight:600;margin:18px 0 8px}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:22px}
+li{margin:3px 0}
+
+/* ---------- Layout ---------- */
+.topbar{border-bottom:1px solid var(--border);background:var(--surface)}
+.topbar-in{max-width:1320px;margin:0 auto;padding:28px 24px 24px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.topbar h1{font-size:2rem;font-weight:700;letter-spacing:-.02em}
+.topbar .lead{color:var(--muted);margin:8px 0 0;max-width:760px}
+.meta{display:grid;grid-template-columns:auto auto;gap:4px 16px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--text);font-weight:500;font-family:var(--mono);font-size:12.5px}
+.theme-btn{margin-top:10px;grid-column:1/-1;justify-self:end;background:var(--surface-2);border:1px solid var(--border);color:var(--text);font:500 12px var(--mono);padding:6px 10px;border-radius:6px;cursor:pointer}
+.shell{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:250px minmax(0,1fr);gap:40px;padding:0 24px}
+.toc{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding:24px 0 40px;font-size:13.5px}
+.toc-title{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 0 10px 10px}
+.toc a{display:flex;gap:8px;color:var(--muted);padding:5px 10px;border-radius:6px;border-left:2px solid transparent}
+.toc a span{font-family:var(--mono);font-size:11.5px;color:var(--faint);min-width:20px;padding-top:1px}
+.toc a:hover{background:var(--surface-2);text-decoration:none;color:var(--text)}
+.toc a.active{color:var(--text);background:var(--surface);border-left-color:var(--accent)}
+.toc-group{font:600 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:16px 0 4px 10px}
+main.doc{padding:32px 0 120px;min-width:0}
+section.sec{padding:36px 0 28px;border-bottom:1px solid var(--border)}
+section.sec:first-child{padding-top:0}
+.sec-head{display:flex;gap:14px;align-items:baseline;margin-bottom:16px}
+.sec-no{font:600 13px var(--mono);color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);padding:2px 8px;border-radius:5px}
+.sec-intro{color:var(--muted);max-width:820px}
+
+/* ---------- Components ---------- */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow)}
+.card h4{margin-top:0}
+.card .k{font:500 11.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.card .v{font-size:1.05rem;font-weight:600;margin-top:4px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.tag{display:inline-block;font:500 11px/1.5 var(--mono);padding:0 7px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.tag.must{color:var(--err);background:var(--err-soft);border-color:transparent}
+.tag.should{color:var(--accent);background:var(--accent-soft);border-color:transparent}
+.tag.add{color:var(--info);background:var(--info-soft);border-color:transparent}
+.tag.ok{color:var(--ok);background:var(--ok-soft);border-color:transparent}
+.note{border:1px solid var(--border);border-left:3px solid var(--info);background:var(--surface);padding:12px 16px;border-radius:8px;margin:14px 0;font-size:14px}
+.note.warn{border-left-color:var(--accent)} .note.err{border-left-color:var(--err)} .note.ok{border-left-color:var(--ok)}
+.note b:first-child{display:block;margin-bottom:2px}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font:600 11.5px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+td.mono{font-family:var(--mono);font-size:12.5px}
+pre.code{background:var(--code-bg);color:var(--code-text);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:12.8px;line-height:1.6;margin:12px 0;border:1px solid var(--border)}
+pre.code .c{color:var(--code-muted)} pre.code .k{color:var(--code-kw)} pre.code .s{color:var(--code-str)} pre.code .n{color:var(--code-key)}
+.code-title{font:500 12px var(--mono);color:var(--muted);margin:14px 0 -6px;display:flex;gap:8px;align-items:center}
+.code-title::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--accent)}
+pre.tree{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:16px 18px;font-size:12.8px;line-height:1.55;overflow-x:auto}
+pre.tree .d{color:var(--accent);font-weight:600} pre.tree .c{color:var(--faint)} pre.tree .a{color:var(--info)}
+
+/* diagrams */
+.layers{display:grid;gap:8px;margin:14px 0}
+.layer{display:grid;grid-template-columns:190px 1fr;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden}
+.layer-name{padding:12px 14px;background:var(--surface-2);border-right:1px solid var(--border)}
+.layer-name b{display:block;font-size:13.5px}
+.layer-name code{background:none;border:none;padding:0;color:var(--muted);font-size:11.5px}
+.layer-body{padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font:500 12px var(--mono);border:1px solid var(--border-strong);border-radius:6px;padding:3px 8px;background:var(--bg)}
+.chip.hi{border-color:var(--accent-line);background:var(--accent-soft)}
+.layer-arrow{text-align:center;color:var(--faint);font:12px var(--mono);margin:-2px 0}
+.flow{display:flex;flex-wrap:wrap;gap:0;align-items:stretch;margin:16px 0}
+.step{flex:1 1 110px;min-width:110px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;margin-right:18px;margin-bottom:10px}
+.step:last-child{margin-right:0}
+.step:not(:last-child)::after{content:"→";position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:var(--accent);font-weight:700}
+.step .n{font:600 10.5px var(--mono);color:var(--accent)}
+.step b{display:block;font-size:13.5px;margin:2px 0}
+.step small{display:block;color:var(--muted);font:11.5px/1.4 var(--mono)}
+.threads{display:grid;grid-template-columns:1fr 200px 1fr;gap:0;margin:16px 0;align-items:stretch}
+.thread{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:14px}
+.thread h4{margin:0 0 8px;font-size:13px;font-family:var(--mono);letter-spacing:.04em}
+.thread ul{list-style:none;padding:0;margin:0;font:12.5px/1.5 var(--mono)}
+.thread li{padding:4px 8px;border-radius:5px;background:var(--surface-2);margin:4px 0}
+.signals{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 10px}
+.sig{font:11.5px var(--mono);text-align:center;border-bottom:1px dashed var(--accent-line);padding:3px 0;color:var(--muted)}
+.sig::before{content:"◀ ";color:var(--accent)}
+.sig.r::before{content:""} .sig.r::after{content:" ▶";color:var(--info)}
+.module{border:1px solid var(--border);border-radius:12px;background:var(--surface);margin:18px 0;overflow:hidden}
+.module-h{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.module-h h3{margin:0;font-family:var(--mono);font-size:1.02rem}
+.module-h .path{font:12px var(--mono);color:var(--muted)}
+.module-b{padding:14px 18px}
+.module-b .table-wrap{margin:10px 0}
+.rules{margin:8px 0 0;padding-left:18px;font-size:14px}
+.rules li::marker{color:var(--accent)}
+.phases{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:14px 0}
+.phase{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:12px 14px}
+.phase .p{font:600 11px var(--mono);color:var(--accent)}
+.phase b{display:block;margin:2px 0 6px}
+.phase ul{font-size:12.5px;color:var(--muted);padding-left:16px;margin:0}
+.phase .verify{margin-top:8px;font:11.5px var(--mono);color:var(--ok)}
+.checklist{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.checklist label{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:9px 12px;cursor:pointer;font-size:14px}
+.checklist input{margin-top:4px;accent-color:var(--accent)}
+.checklist .num{font:600 11.5px var(--mono);color:var(--faint);min-width:22px;padding-top:2px}
+.progress{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;border:1px solid var(--border)}
+.progress i{display:block;height:100%;width:0;background:var(--ok);transition:width .25s}
+.rule-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.rule-list div{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface);font-size:14px;display:flex;gap:10px}
+.rule-list div::before{content:"✕";color:var(--err);font-weight:700}
+.rule-list.do div::before{content:"✓";color:var(--ok)}
+svg text{font-family:var(--mono)}
+.persp{width:100%;height:auto;display:block;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+
+/* QMessageBox demo */
+.err-demo{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;margin:14px 0}
+.err-demo select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:13px var(--sans)}
+.err-stage{background:#0e1013;border-radius:10px;padding:26px;display:flex;justify-content:center;border:1px solid var(--border);min-height:210px;align-items:center}
+
+/* ---------- APP DEMO (always dark: this is the PySide6 app look) ---------- */
+.demo-wrap{overflow-x:auto;margin:16px 0;border-radius:12px;padding-bottom:4px}
+.app{
+  --a-bg:#0e1013; --a-panel:#15181c; --a-panel2:#1b1f24; --a-line:#262b32; --a-line2:#323843;
+  --a-text:#d5dae0; --a-muted:#7f8893; --a-faint:#5a626c; --a-amber:#d9a441; --a-green:#4fae7b; --a-blue:#5b9bd5; --a-red:#e05a5a;
+  min-width:1000px;background:var(--a-bg);color:var(--a-text);border:1px solid #2b3038;border-radius:10px;overflow:hidden;position:relative;
+  font:13px/1.45 var(--sans);box-shadow:0 10px 30px rgba(0,0,0,.25)
+}
+.app *{scrollbar-width:thin;scrollbar-color:#333a44 transparent}
+.app-title{height:32px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#0a0b0d;border-bottom:1px solid var(--a-line);font:12px var(--sans);color:var(--a-muted)}
+.app-title .logo{width:14px;height:14px;border:2px solid var(--a-amber);border-radius:3px;position:relative}
+.app-title .logo::after{content:"";position:absolute;inset:3px;background:var(--a-amber);border-radius:1px}
+.app-title .wc{margin-left:auto;display:flex;gap:18px;font-size:12px;color:var(--a-faint)}
+.app-body{display:grid;grid-template-columns:176px 1fr;height:640px}
+.app-nav{background:#111317;border-right:1px solid var(--a-line);display:flex;flex-direction:column;padding:10px 8px;gap:2px}
+.app-nav .grp{font:600 10px var(--mono);letter-spacing:.12em;color:var(--a-faint);padding:6px 10px 6px}
+.nav-btn{display:flex;align-items:center;gap:10px;background:none;border:0;color:var(--a-muted);font:500 13px var(--sans);padding:8px 10px;border-radius:6px;cursor:pointer;text-align:left;border-left:2px solid transparent}
+.nav-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;flex:none}
+.nav-btn:hover{background:#181b20;color:var(--a-text)}
+.nav-btn.active{background:#1b1f25;color:#fff;border-left-color:var(--a-amber)}
+.nav-btn .badge{margin-left:auto;font:600 10.5px var(--mono);background:var(--a-red);color:#fff;border-radius:9px;padding:0 6px;display:none}
+.nav-foot{margin-top:auto;border-top:1px solid var(--a-line);padding:10px;font:11px/1.6 var(--mono);color:var(--a-faint)}
+.nav-foot b{color:var(--a-muted);font-weight:500}
+.app-main{overflow:hidden;position:relative}
+.page{display:none;height:100%;padding:14px 16px;overflow:auto}
+.page.active{display:flex;flex-direction:column;gap:12px}
+.pg-head{display:flex;align-items:center;gap:12px}
+.pg-head h3{margin:0;font-size:15px;font-weight:600;color:#fff}
+.pg-head .sub{font:11px var(--mono);color:var(--a-faint);letter-spacing:.08em}
+.pg-head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.qbtn{font:600 12px var(--sans);letter-spacing:.03em;color:var(--a-text);background:var(--a-panel2);border:1px solid var(--a-line2);border-radius:5px;padding:6px 12px;cursor:pointer;min-width:84px}
+.qbtn:hover:not(:disabled){border-color:#4a525e;background:#20252b}
+.qbtn:disabled{opacity:.38;cursor:not-allowed}
+.qbtn.primary{background:#1f3a2b;border-color:#2e5a41;color:#bfe8cf}
+.qbtn.primary:hover:not(:disabled){background:#24442f}
+.qbtn.danger{background:#3a1f1f;border-color:#5a2e2e;color:#f0c4c4}
+.qbtn.ghost{background:transparent}
+.pill{font:600 11px var(--mono);letter-spacing:.06em;padding:3px 9px;border-radius:4px;border:1px solid var(--a-line2);color:var(--a-muted)}
+.pill.running{color:var(--a-green);border-color:#2e5a41;background:#14231a}
+.pill.paused{color:var(--a-amber);border-color:#5a4520;background:#231c10}
+.pill.stopped{color:var(--a-blue);border-color:#2b4a6b;background:#111c28}
+.dash-grid{display:grid;grid-template-columns:1fr 250px;gap:12px;min-height:0;flex:1}
+.video-box{background:#000;border:1px solid var(--a-line);border-radius:6px;overflow:hidden;position:relative;align-self:start}
+.video-box canvas{display:block;width:100%;aspect-ratio:16/9}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0}
+.panel{background:var(--a-panel);border:1px solid var(--a-line);border-radius:6px;display:flex;flex-direction:column;min-height:0}
+.panel.grow{flex:1}
+.panel-h{font:600 10.5px var(--mono);letter-spacing:.12em;color:var(--a-muted);padding:8px 10px;border-bottom:1px solid var(--a-line);display:flex;justify-content:space-between}
+.kv{margin:0;padding:6px 10px;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px}
+.kv dt{color:var(--a-faint)} .kv dd{margin:0;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--a-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-log{overflow:auto;flex:1;font:11.5px/1.5 var(--mono);padding:4px 0;max-height:220px}
+.mini-log .row{display:grid;grid-template-columns:58px 38px 1fr auto;gap:6px;padding:3px 10px;border-bottom:1px solid #1c2026}
+.mini-log .row .t{color:var(--a-faint)}
+.empty{color:var(--a-faint);padding:14px 10px;font:12px var(--sans);text-align:center}
+.cards{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.stat{background:var(--a-panel);border:1px solid var(--a-line);border-radius:6px;padding:8px 10px;border-top:2px solid var(--a-line2)}
+.stat .l{font:600 10px var(--mono);letter-spacing:.08em;color:var(--a-muted);text-transform:uppercase;white-space:nowrap}
+.stat .v{font:600 22px/1.2 var(--mono);color:#fff;margin-top:3px}
+.stat.in{border-top-color:var(--a-green)} .stat.out{border-top-color:var(--a-blue)} .stat.tot{border-top-color:var(--a-amber)}
+.stat.vio{border-top-color:var(--a-red)} .stat.vio.hot .v{color:var(--a-red)}
+.ev{font:600 10.5px var(--mono);padding:0 6px;border-radius:3px;white-space:nowrap}
+.ev.SPEED_VIOLATION{color:#ffb3b3;background:#3a1a1a}
+.ev.VEHICLE_IN{color:#a9e3c2;background:#14271c}
+.ev.VEHICLE_OUT{color:#b5d3f0;background:#13202e}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fgroup{background:var(--a-panel);border:1px solid var(--a-line);border-radius:6px;padding:12px}
+.fgroup h5{margin:0 0 10px;font:600 10.5px var(--mono);letter-spacing:.12em;color:var(--a-muted)}
+.frow{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;margin:8px 0}
+.frow label{color:var(--a-muted);font-size:12.5px}
+.frow .ctl{display:flex;gap:8px;align-items:center}
+.app input[type=text],.app input[type=number],.app select{width:100%;background:#0f1114;border:1px solid var(--a-line2);color:var(--a-text);border-radius:4px;padding:5px 8px;font:12.5px var(--mono)}
+.app input[type=text]:focus,.app input[type=number]:focus,.app select:focus{outline:1px solid var(--a-amber);border-color:var(--a-amber)}
+.app input[type=range]{flex:1;accent-color:var(--a-amber)}
+.app input[type=checkbox],.app input[type=radio]{accent-color:var(--a-amber)}
+.rv{font:12px var(--mono);min-width:54px;text-align:right;color:#fff}
+.frow.invalid input{border-color:var(--a-red)!important}
+.yaml{background:#0b0c0e;border:1px solid var(--a-line);border-radius:6px;padding:10px 12px;font:11.5px/1.55 var(--mono);color:#aab3bd;margin:0;white-space:pre;overflow:auto;max-height:260px}
+.src-type{display:flex;gap:8px}
+.src-type label{flex:1;border:1px solid var(--a-line2);border-radius:6px;padding:10px;cursor:pointer;background:var(--a-panel)}
+.src-type label:has(input:checked){border-color:var(--a-amber);background:#1d1a12}
+.src-type b{display:block;font-size:13px;color:#fff}
+.src-type small{color:var(--a-faint);font:11px var(--mono)}
+.src-pane{display:none} .src-pane.on{display:block}
+.rep-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bars{display:flex;flex-direction:column;gap:8px;padding:10px}
+.bar{display:grid;grid-template-columns:90px 1fr 70px;gap:10px;align-items:center;font-size:12px}
+.bar .track{height:10px;background:#0f1114;border:1px solid var(--a-line);border-radius:3px;overflow:hidden;display:flex}
+.bar .track i{display:block;height:100%}
+.bar .num{font:11.5px var(--mono);text-align:right;color:var(--a-muted)}
+.legend{display:flex;gap:14px;font:11px var(--mono);color:var(--a-muted);padding:0 10px 10px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.log-table{flex:1;overflow:auto;background:var(--a-panel);border:1px solid var(--a-line);border-radius:6px}
+.log-table table{font:12px var(--mono);color:var(--a-text)}
+.log-table th{position:sticky;top:0;background:#1b1f24;color:var(--a-muted);font:600 10.5px var(--mono);border-bottom:1px solid var(--a-line2)}
+.log-table td{border-bottom:1px solid #1d2127;padding:5px 12px;white-space:nowrap}
+.log-table tr.v td{background:#1c1414}
+.toolbar{display:flex;gap:8px;align-items:center}
+.toolbar select,.toolbar input[type=text]{width:auto!important}
+.app-status{height:26px;border-top:1px solid var(--a-line);background:#0a0b0d;display:flex;align-items:center;gap:16px;padding:0 12px;font:11px var(--mono);color:var(--a-faint)}
+.app-status .dot{width:7px;height:7px;border-radius:50%;background:var(--a-faint);display:inline-block;margin-right:6px}
+.app-status .dot.on{background:var(--a-green)} .app-status .dot.pa{background:var(--a-amber)}
+.app-status .r{margin-left:auto}
+.dlg-layer{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20}
+.dlg-layer.on{display:flex}
+.qmsg{width:430px;background:#1d2127;border:1px solid #3a414b;border-radius:6px;box-shadow:0 20px 50px rgba(0,0,0,.5);color:#d5dae0;font:13px/1.5 var(--sans);text-align:left}
+.qmsg-t{padding:8px 12px;font-size:12px;color:#9aa3ad;border-bottom:1px solid #2b3139;display:flex}
+.qmsg-t span{margin-left:auto;color:#6a727c}
+.qmsg-b{display:grid;grid-template-columns:40px 1fr;gap:12px;padding:16px}
+.qmsg-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 18px var(--sans);color:#fff}
+.qmsg-ic.critical{background:#b83b3b} .qmsg-ic.warning{background:#c08a1e} .qmsg-ic.information{background:#2c6aa6}
+.qmsg-b b{display:block;margin-bottom:4px;color:#fff}
+.qmsg-b .det{margin-top:8px;font:11.5px var(--mono);color:#8b949e;background:#15181c;border:1px solid #2b3139;border-radius:4px;padding:6px 8px;word-break:break-word}
+.qmsg-f{display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;border-top:1px solid #2b3139}
+.toast{position:absolute;right:16px;bottom:40px;z-index:30;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast div{background:#1f252c;border:1px solid #39414b;border-left:3px solid var(--a-green);color:#d5dae0;padding:8px 12px;border-radius:5px;font:12px var(--sans);max-width:420px;box-shadow:0 8px 20px rgba(0,0,0,.4);animation:tin .2s ease}
+.toast div.w{border-left-color:var(--a-amber)}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.demo-note{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1080px){
+  .shell{grid-template-columns:1fr;gap:0}
+  .toc{position:static;max-height:none;border-bottom:1px solid var(--border);padding:14px 0;display:none}
+  .toc.open{display:block}
+  .toc-toggle{display:inline-block!important}
+}
+@media (max-width:760px){
+  .topbar-in{grid-template-columns:1fr;padding:22px 16px}
+  .topbar h1{font-size:1.55rem}
+  .shell{padding:0 16px}
+  .g2,.g3,.g4,.checklist,.rule-list,.err-demo{grid-template-columns:1fr}
+  .threads{grid-template-columns:1fr}
+  .signals{padding:10px 0}
+  .layer{grid-template-columns:1fr}
+  .layer-name{border-right:none;border-bottom:1px solid var(--border)}
+  .step{flex-basis:100%;margin-right:0}
+  .step:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-17px;transform:translateX(-50%)}
+  .step{margin-bottom:18px}
+}
+.toc-toggle{display:none;background:var(--surface-2);border:1px solid var(--border);color:var(--text);font:500 12px var(--mono);padding:6px 10px;border-radius:6px;cursor:pointer;margin:12px 0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div>
+      <div class="eyebrow">Đồ án cuối khoá · Bài 9 · Software Requirements &amp; Design Specification</div>
+      <h1>Traffic Monitor Desktop</h1>
+      <p class="lead">Ứng dụng desktop giám sát giao thông bằng Computer Vision: phát hiện, phân loại, tracking, đếm IN/OUT, đo tốc độ, cảnh báo vượt tốc độ và xuất báo cáo. Python · OpenCV · Ultralytics YOLO · Supervision · PySide6.</p>
+    </div>
+    <div>
+      <div class="meta">
+        <span>Mã tài liệu</span><b>TM-SRS-001</b>
+        <span>Phiên bản</span><b>1.0</b>
+        <span>Ngày</span><b>2026-09-28</b>
+        <span>Trạng thái</span><b>Baseline</b>
+        <span>Nền tảng</span><b>Windows 10/11</b>
+        <span>Nguồn</span><b>docs/README.md</b>
+      </div>
+      <button class="theme-btn" id="themeBtn" type="button">Giao diện: tự động</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" id="toc" aria-label="Mục lục">
+    <div class="toc-title">Mục lục</div>
+    <div class="toc-group">Tổng quan</div>
+    <a href="#s1"><span>01</span>Giới thiệu &amp; phạm vi</a>
+    <a href="#s2"><span>02</span>Yêu cầu chức năng</a>
+    <a href="#s3"><span>03</span>Yêu cầu phi chức năng</a>
+    <a href="#s4"><span>04</span>Công nghệ &amp; phụ thuộc</a>
+    <div class="toc-group">Thiết kế</div>
+    <a href="#s5"><span>05</span>Kiến trúc hệ thống</a>
+    <a href="#s6"><span>06</span>Cấu trúc thư mục</a>
+    <a href="#s7"><span>07</span>Pipeline xử lý frame</a>
+    <a href="#s8"><span>08</span>Threading &amp; Signals</a>
+    <a href="#s9"><span>09</span>Đặc tả module</a>
+    <a href="#s10"><span>10</span>Đo tốc độ (Perspective)</a>
+    <a href="#s11"><span>11</span>Mô hình dữ liệu</a>
+    <div class="toc-group">Giao diện</div>
+    <a href="#s12"><span>12</span>Đặc tả GUI</a>
+    <a href="#s13"><span>13</span>UI Demo tương tác</a>
+    <a href="#s14"><span>14</span>Annotation</a>
+    <div class="toc-group">Vận hành &amp; chất lượng</div>
+    <a href="#s15"><span>15</span>Xử lý lỗi</a>
+    <a href="#s16"><span>16</span>Logging &amp; Output</a>
+    <a href="#s17"><span>17</span>Kiểm thử</a>
+    <a href="#s18"><span>18</span>Chuẩn code &amp; ràng buộc</a>
+    <a href="#s19"><span>19</span>Kế hoạch triển khai</a>
+    <a href="#s20"><span>20</span>Tiêu chí nghiệm thu</a>
+    <a href="#s21"><span>21</span>Phụ lục</a>
+    <a href="#s22"><span>22</span>Kết quả triển khai</a>
+  </nav>
+
+  <main class="doc">
+    <button class="toc-toggle" id="tocToggle" type="button">☰ Mục lục</button>
+
+    <!-- ===================== 1 ===================== -->
+    <section class="sec" id="s1">
+      <div class="sec-head"><span class="sec-no">01</span><h2>Giới thiệu &amp; phạm vi</h2></div>
+      <p class="sec-intro">Tài liệu này chuẩn hoá yêu cầu gốc (<code>docs/README.md</code>) thành đặc tả kỹ thuật có cấu trúc: mỗi yêu cầu có mã định danh, mỗi module có hợp đồng (interface) rõ ràng, mỗi lỗi có cách xử lý, mỗi tính năng có tiêu chí nghiệm thu.</p>
+
+      <div class="grid g3" style="margin-top:16px">
+        <div class="card"><div class="k">Sản phẩm</div><div class="v">Ứng dụng desktop PySide6</div><p class="small muted" style="margin:6px 0 0">Chạy cục bộ trên Windows, xử lý video bằng YOLO + ByteTrack, hiển thị realtime.</p></div>
+        <div class="card"><div class="k">Đầu vào</div><div class="v">Video file · Webcam · RTSP</div><p class="small muted" style="margin:6px 0 0">Bắt buộc: video file. Webcam/RTSP: kiến trúc sẵn sàng qua interface <code>VideoSource</code>.</p></div>
+        <div class="card"><div class="k">Đầu ra</div><div class="v">MP4 · JSON · CSV · Log</div><p class="small muted" style="margin:6px 0 0">Video đã annotate, báo cáo phiên, danh sách sự kiện, file log ứng dụng.</p></div>
+      </div>
+
+      <h3>Phạm vi</h3>
+      <div class="grid g2">
+        <div class="card"><h4>Trong phạm vi</h4>
+          <ul class="small">
+            <li>Phát hiện 4 loại phương tiện: <code>car</code>, <code>motorcycle</code>, <code>bus</code>, <code>truck</code>.</li>
+            <li>Tracking bằng ID, đếm qua 1 LineZone ngang, đo tốc độ qua 1 vùng perspective 4 điểm.</li>
+            <li>Cảnh báo <code>SPEED_VIOLATION</code> realtime, dashboard, event log.</li>
+            <li>Xuất video, JSON, CSV; cấu hình qua GUI và file YAML.</li>
+            <li>Unit test cho 6 thành phần lõi (model YOLO được mock).</li>
+          </ul>
+        </div>
+        <div class="card"><h4>Ngoài phạm vi (v1.0)</h4>
+          <ul class="small">
+            <li>Nhận dạng biển số (ANPR), phát hiện vượt đèn đỏ, lấn làn.</li>
+            <li>Nhiều counting line / nhiều camera đồng thời.</li>
+            <li>Lưu trữ cơ sở dữ liệu, giao diện web, phân quyền người dùng.</li>
+            <li>Huấn luyện lại model (chỉ hỗ trợ thay file <code>.pt</code>).</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Thuật ngữ</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Thuật ngữ</th><th>Định nghĩa</th></tr>
+        <tr><td><code>sv.Detections</code></td><td>Cấu trúc dữ liệu của Supervision chứa <code>xyxy</code>, <code>confidence</code>, <code>class_id</code>, <code>tracker_id</code> của các đối tượng trong 1 frame.</td></tr>
+        <tr><td>ByteTrack</td><td>Thuật toán multi-object tracking gán <code>tracker_id</code> ổn định cho cùng một xe qua các frame (<code>sv.ByteTrack</code>).</td></tr>
+        <tr><td>DetectionsSmoother</td><td>Làm mượt toạ độ bounding box theo lịch sử N frame để giảm rung (jitter).</td></tr>
+        <tr><td>LineZone</td><td>Đường đếm ảo; xe có anchor vượt qua line được tính là IN hoặc OUT tuỳ chiều di chuyển.</td></tr>
+        <tr><td>Anchor (bottom-center)</td><td>Điểm giữa cạnh dưới bounding box, xấp xỉ điểm tiếp xúc mặt đường. Dùng cho đếm và đo tốc độ.</td></tr>
+        <tr><td>ViewTransformer</td><td>Phép biến đổi phối cảnh (homography) từ toạ độ pixel sang toạ độ mặt đường tính bằng mét.</td></tr>
+        <tr><td>Session</td><td>Một lần xử lý từ lúc bấm START đến khi STOP hoặc hết video. Mỗi session sinh 1 bộ output.</td></tr>
+        <tr><td>Event</td><td>Bản ghi sự kiện: <code>VEHICLE_IN</code>, <code>VEHICLE_OUT</code>, <code>SPEED_VIOLATION</code>.</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 2 ===================== -->
+    <section class="sec" id="s2">
+      <div class="sec-head"><span class="sec-no">02</span><h2>Yêu cầu chức năng</h2></div>
+      <p class="sec-intro">15 mục tiêu gốc được đánh mã <code>FR-xx</code>, gắn mức ưu tiên và module chịu trách nhiệm. <span class="tag must">MUST</span> = bắt buộc cho nghiệm thu, <span class="tag should">SHOULD</span> = kiến trúc phải hỗ trợ, triển khai tối thiểu.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Mã</th><th>Yêu cầu</th><th>Ưu tiên</th><th>Module chính</th><th>Tiêu chí kiểm chứng</th></tr>
+        <tr><td class="mono">FR-01</td><td>Phát hiện phương tiện</td><td><span class="tag must">MUST</span></td><td class="mono">core/detector.py</td><td>Bounding box hiển thị trên xe trong video mẫu.</td></tr>
+        <tr><td class="mono">FR-02</td><td>Phân loại phương tiện</td><td><span class="tag must">MUST</span></td><td class="mono">core/detector.py</td><td>Label đúng 1 trong 4 lớp; lớp khác bị loại.</td></tr>
+        <tr><td class="mono">FR-03</td><td>Tracking theo ID</td><td><span class="tag must">MUST</span></td><td class="mono">core/tracker.py</td><td>Mỗi xe có <code>#id</code> ổn định khi di chuyển.</td></tr>
+        <tr><td class="mono">FR-04</td><td>Đếm IN / OUT qua LineZone</td><td><span class="tag must">MUST</span></td><td class="mono">core/counter.py</td><td>Mỗi <code>tracker_id</code> được đếm tối đa 1 lần.</td></tr>
+        <tr><td class="mono">FR-05</td><td>Đo tốc độ bằng perspective transform</td><td><span class="tag must">MUST</span></td><td class="mono">core/speed_estimator.py</td><td>Tốc độ km/h hiển thị sau thời gian tối thiểu.</td></tr>
+        <tr><td class="mono">FR-06</td><td>Phát hiện vượt tốc độ</td><td><span class="tag must">MUST</span></td><td class="mono">core/alert_manager.py</td><td><code>speed &gt; speed_limit</code> ⇒ 1 event <code>SPEED_VIOLATION</code>.</td></tr>
+        <tr><td class="mono">FR-07</td><td>Cảnh báo realtime</td><td><span class="tag must">MUST</span></td><td class="mono">gui/dashboard.py</td><td>Box đỏ + event xuất hiện trong log ≤ 1 giây.</td></tr>
+        <tr><td class="mono">FR-08</td><td>Video realtime trên desktop</td><td><span class="tag must">MUST</span></td><td class="mono">gui/widgets/video_view.py</td><td>Frame hiển thị trong cửa sổ Qt, không có <code>cv2.imshow</code>.</td></tr>
+        <tr><td class="mono">FR-09</td><td>Dashboard thống kê realtime</td><td><span class="tag must">MUST</span></td><td class="mono">gui/dashboard.py</td><td>8 stat card cập nhật theo pipeline.</td></tr>
+        <tr><td class="mono">FR-10</td><td>Xuất video annotation</td><td><span class="tag must">MUST</span></td><td class="mono">video/video_writer.py</td><td>File <code>traffic_output_*.mp4</code> mở được.</td></tr>
+        <tr><td class="mono">FR-11</td><td>Xuất báo cáo JSON</td><td><span class="tag must">MUST</span></td><td class="mono">reports/json_exporter.py</td><td>JSON hợp lệ theo schema mục 11.</td></tr>
+        <tr><td class="mono">FR-12</td><td>Xuất báo cáo CSV</td><td><span class="tag must">MUST</span></td><td class="mono">reports/csv_exporter.py</td><td>CSV UTF-8, header đúng mục 11.</td></tr>
+        <tr><td class="mono">FR-13</td><td>Lưu event log</td><td><span class="tag must">MUST</span></td><td class="mono">core/alert_manager.py</td><td>Event hiện trong GUI và nằm trong báo cáo.</td></tr>
+        <tr><td class="mono">FR-14</td><td>Hỗ trợ video file</td><td><span class="tag must">MUST</span></td><td class="mono">video/video_source.py</td><td>Chọn <code>.mp4/.avi/.mkv/.mov</code> và xử lý được.</td></tr>
+        <tr><td class="mono">FR-15</td><td>Mở rộng webcam / RTSP</td><td><span class="tag should">SHOULD</span></td><td class="mono">video/video_source.py</td><td><code>CameraVideoSource</code>, <code>RTSPVideoSource</code> dùng chung interface.</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 3 ===================== -->
+    <section class="sec" id="s3">
+      <div class="sec-head"><span class="sec-no">03</span><h2>Yêu cầu phi chức năng</h2></div>
+      <div class="table-wrap"><table>
+        <tr><th>Mã</th><th>Nhóm</th><th>Yêu cầu</th></tr>
+        <tr><td class="mono">NFR-01</td><td>Nền tảng</td><td>Chạy trên Windows 10/11, Python 3.10+. Không hard-code đường dẫn Windows; mọi đường dẫn dùng <code>pathlib.Path</code> tương đối với thư mục gốc dự án.</td></tr>
+        <tr><td class="mono">NFR-02</td><td>Khả năng phản hồi</td><td>GUI thread không bao giờ chạy inference/đọc video. Cửa sổ vẫn kéo, resize, bấm nút được trong khi xử lý.</td></tr>
+        <tr><td class="mono">NFR-03</td><td>Độ ổn định</td><td>Mọi lỗi trong mục 15 được bắt, ghi log và hiển thị <code>QMessageBox</code>; ứng dụng không crash.</td></tr>
+        <tr><td class="mono">NFR-04</td><td>Hiệu năng</td><td>Mục tiêu tham khảo: ≥ 15 FPS với <code>yolov8n.pt</code> ở 720p trên CPU tầm trung; GPU (CUDA) được dùng tự động nếu có. GUI chỉ hiển thị frame mới nhất (drop frame hiển thị, không drop frame xử lý với video file).</td></tr>
+        <tr><td class="mono">NFR-05</td><td>Tính mở rộng</td><td>Thêm nguồn video mới chỉ cần thêm 1 lớp con <code>VideoSource</code>; thay model chỉ cần đổi <code>model_path</code>.</td></tr>
+        <tr><td class="mono">NFR-06</td><td>Tính trung thực</td><td>Không có dữ liệu giả, nút giả hay số liệu hard-code. Mọi con số trên GUI xuất phát từ pipeline thật.</td></tr>
+        <tr><td class="mono">NFR-07</td><td>Khả năng bảo trì</td><td>PEP8, type hints, docstring, mỗi class một trách nhiệm, không có hàm quá dài (khuyến nghị ≤ 40 dòng).</td></tr>
+        <tr><td class="mono">NFR-08</td><td>Quan sát được</td><td>Log INFO/WARNING/ERROR ra <code>logs/app.log</code> kèm console.</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 4 ===================== -->
+    <section class="sec" id="s4">
+      <div class="sec-head"><span class="sec-no">04</span><h2>Công nghệ &amp; phụ thuộc</h2></div>
+      <div class="table-wrap"><table>
+        <tr><th>Thư viện</th><th>Phiên bản</th><th>Vai trò</th><th>Ghi chú</th></tr>
+        <tr><td class="mono">Python</td><td class="mono">≥ 3.10</td><td>Runtime</td><td>Dùng cú pháp <code>X | None</code>, <code>match</code> tuỳ chọn.</td></tr>
+        <tr><td class="mono">PySide6</td><td class="mono">≥ 6.6</td><td>GUI, QThread, Signal/Slot</td><td>Không dùng Tkinter.</td></tr>
+        <tr><td class="mono">opencv-python</td><td class="mono">≥ 4.8</td><td>Đọc/ghi video, perspective transform</td><td>Cần ≥ 4.5.4 cho <code>CAP_PROP_OPEN_TIMEOUT_MSEC</code> (RTSP).</td></tr>
+        <tr><td class="mono">numpy</td><td class="mono">≥ 1.24</td><td>Xử lý mảng toạ độ</td><td></td></tr>
+        <tr><td class="mono">ultralytics</td><td class="mono">≥ 8.1</td><td>YOLO inference</td><td>Model mặc định <code>yolov8n.pt</code>.</td></tr>
+        <tr><td class="mono">supervision</td><td class="mono">≥ 0.26</td><td>Detections, ByteTrack, Smoother, LineZone, Annotators</td><td>Theo yêu cầu gốc.</td></tr>
+        <tr><td class="mono">PyYAML</td><td class="mono">≥ 6.0</td><td>Đọc/ghi <code>config.yaml</code></td><td></td></tr>
+        <tr><td class="mono">python-dotenv <span class="tag add">bổ sung</span></td><td class="mono">≥ 1.0</td><td>Nạp biến môi trường từ <code>.env</code></td><td>Lý do: yêu cầu có <code>.env.example</code>; dùng để giữ URL RTSP có mật khẩu, log level, device ngoài source code.</td></tr>
+        <tr><td class="mono">pytest <span class="tag add">bổ sung</span></td><td class="mono">≥ 8.0</td><td>Chạy unit test</td><td>Lý do: mục 24 yêu cầu unit test; pytest + <code>unittest.mock</code> để mock model.</td></tr>
+      </table></div>
+      <div class="code-title">requirements.txt</div>
+<pre class="code">PySide6&gt;=6.6
+opencv-python&gt;=4.8
+numpy&gt;=1.24
+supervision&gt;=0.26
+ultralytics&gt;=8.1
+PyYAML&gt;=6.0
+python-dotenv&gt;=1.0   <span class="c"># nạp .env (RTSP credentials, log level, device)</span>
+pytest&gt;=8.0          <span class="c"># unit test</span></pre>
+      <div class="code-title">.env.example</div>
+<pre class="code"><span class="n">TM_LOG_LEVEL</span>=INFO
+<span class="n">TM_DEVICE</span>=auto                        <span class="c"># auto | cpu | cuda:0</span>
+<span class="n">TM_RTSP_URL</span>=rtsp://user:password@192.168.1.10:554/stream1</pre>
+    </section>
+
+    <!-- ===================== 5 ===================== -->
+    <section class="sec" id="s5">
+      <div class="sec-head"><span class="sec-no">05</span><h2>Kiến trúc hệ thống</h2></div>
+      <p class="sec-intro">Kiến trúc phân lớp. Phụ thuộc chỉ đi <b>từ trên xuống</b>. Chỉ lớp Presentation được import PySide6; lõi Computer Vision thuần Python để test độc lập với GUI.</p>
+      <div class="layers">
+        <div class="layer"><div class="layer-name"><b>Presentation</b><code>app/gui</code></div><div class="layer-body"><span class="chip hi">MainWindow</span><span class="chip">DashboardPage</span><span class="chip">VideoPanel</span><span class="chip">SourcePanel</span><span class="chip">SettingsPanel</span><span class="chip">ReportPanel</span><span class="chip">LogPanel</span><span class="chip">StatCard · VideoView · LogView</span></div></div>
+        <div class="layer-arrow">▼ Signal/Slot (queued connection) ▲</div>
+        <div class="layer"><div class="layer-name"><b>Worker</b><code>app/gui/processing_worker.py</code></div><div class="layer-body"><span class="chip hi">ProcessingWorker (QObject → QThread)</span><span class="muted small">cầu nối duy nhất giữa Qt và lõi xử lý; chuyển frame → <code>QImage</code></span></div></div>
+        <div class="layer-arrow">▼</div>
+        <div class="layer"><div class="layer-name"><b>Orchestration</b><code>app/core · app/video</code></div><div class="layer-body"><span class="chip hi">TrafficMonitor</span><span class="chip">ProcessingPipeline</span><span class="chip">FrameProcessor</span><span class="chip">VideoReader</span><span class="chip">VideoWriter</span><span class="chip">ReportGenerator</span></div></div>
+        <div class="layer-arrow">▼</div>
+        <div class="layer"><div class="layer-name"><b>Domain CV</b><code>app/core</code></div><div class="layer-body"><span class="chip">VehicleDetector</span><span class="chip">VehicleTracker</span><span class="chip">TrafficCounter</span><span class="chip">SpeedEstimator</span><span class="chip">ZoneManager</span><span class="chip">AlertManager</span></div></div>
+        <div class="layer-arrow">▼</div>
+        <div class="layer"><div class="layer-name"><b>Infrastructure</b><code>app/video · vision · reports</code></div><div class="layer-body"><span class="chip">VideoSource ← File / Camera / RTSP</span><span class="chip">AnnotationRenderer</span><span class="chip">ViewTransformer</span><span class="chip">geometry</span><span class="chip">coordinates</span><span class="chip">JsonExporter</span><span class="chip">CsvExporter</span></div></div>
+        <div class="layer-arrow">▼</div>
+        <div class="layer"><div class="layer-name"><b>Foundation</b><code>app/config · app/utils</code></div><div class="layer-body"><span class="chip hi">AppConfig</span><span class="chip">default_config</span><span class="chip">logger</span><span class="chip">file_utils</span><span class="chip">time_utils</span><span class="chip">constants</span><span class="chip">exceptions</span></div></div>
+      </div>
+
+      <h3>Trách nhiệm các thành phần điều phối</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Class</th><th>File</th><th>Trách nhiệm</th></tr>
+        <tr><td class="mono">ProcessingPipeline</td><td class="mono">core/pipeline.py</td><td>Factory: dựng Detector, Tracker, Counter, SpeedEstimator, AlertManager, AnnotationRenderer từ <code>AppConfig</code> + thông tin video (kích thước, FPS). Không chứa vòng lặp.</td></tr>
+        <tr><td class="mono">TrafficMonitor</td><td class="mono">core/traffic_monitor.py</td><td>Facade phiên xử lý: mở source, lặp frame qua <code>FrameProcessor</code>, ghi video, gom event, sinh báo cáo khi kết thúc. Worker chỉ gọi facade này.</td></tr>
+        <tr><td class="mono">ZoneManager</td><td class="mono">core/zone_manager.py</td><td>Tính toạ độ counting line từ <code>line_y_ratio</code>, validate và cung cấp polygon perspective (<code>perspective_source</code>), lọc detection nằm trong vùng đo.</td></tr>
+        <tr><td class="mono">FrameProcessor</td><td class="mono">video/frame_processor.py</td><td>Chạy pipeline cho <b>một</b> frame, trả về <code>FrameResult</code>.</td></tr>
+      </table></div>
+
+      <h3>Máy trạng thái phiên xử lý</h3>
+      <svg class="persp" viewBox="0 0 900 170" role="img" aria-label="Session state machine">
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+        <g font-size="13" fill="var(--text)">
+          <rect x="20" y="55" width="110" height="44" rx="8" fill="var(--surface-2)" stroke="var(--border-strong)"/><text x="75" y="82" text-anchor="middle">IDLE</text>
+          <rect x="230" y="55" width="120" height="44" rx="8" fill="var(--ok-soft)" stroke="var(--ok)"/><text x="290" y="82" text-anchor="middle">RUNNING</text>
+          <rect x="450" y="10" width="120" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="510" y="37" text-anchor="middle">PAUSED</text>
+          <rect x="450" y="105" width="120" height="44" rx="8" fill="var(--err-soft)" stroke="var(--err)"/><text x="510" y="132" text-anchor="middle">ERROR</text>
+          <rect x="690" y="55" width="160" height="44" rx="8" fill="var(--info-soft)" stroke="var(--info)"/><text x="770" y="82" text-anchor="middle">FINISHED</text>
+        </g>
+        <g stroke="var(--accent)" stroke-width="1.5" fill="none" marker-end="url(#ar)">
+          <path d="M130 77 L228 77"/><path d="M350 66 L448 36"/><path d="M450 46 L352 72"/><path d="M350 88 L448 122"/><path d="M350 77 L688 77"/><path d="M570 32 C640 32 690 50 720 55"/><path d="M570 127 C640 127 690 108 720 99"/>
+          <path d="M770 99 C770 160 75 165 75 101"/>
+        </g>
+        <g font-size="11" fill="var(--muted)">
+          <text x="140" y="70">START</text><text x="375" y="40">PAUSE</text><text x="380" y="62">RESUME</text><text x="365" y="118">exception</text><text x="560" y="72">STOP / end of video</text><text x="600" y="25">STOP</text><text x="610" y="143">close()</text><text x="360" y="162">START (phiên mới, reset thống kê)</text>
+        </g>
+      </svg>
+    </section>
+
+    <!-- ===================== 6 ===================== -->
+    <section class="sec" id="s6">
+      <div class="sec-head"><span class="sec-no">06</span><h2>Cấu trúc thư mục</h2></div>
+      <p class="sec-intro">Cấu trúc bắt buộc theo yêu cầu gốc, đã sửa lỗi hiển thị Markdown (<code>**init**.py</code> → <code>__init__.py</code>, thụt lề nhánh <code>assets/</code>). File đánh dấu <span class="tag add">+</span> là bổ sung cần thiết để đáp ứng các yêu cầu khác (xem Phụ lục).</p>
+<pre class="tree"><span class="d">traffic_monitor/</span>
+├── main.py                        <span class="c"># chỉ khởi động app (mục 26)</span>
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── .env.example
+├── config.yaml                    <span class="a">+ sinh khi SAVE CONFIG (gitignored)</span>
+│
+├── <span class="d">app/</span>
+│   ├── __init__.py
+│   ├── <span class="d">gui/</span>                           <span class="c"># Presentation — chỉ lớp này import PySide6</span>
+│   │   ├── __init__.py
+│   │   ├── main_window.py             <span class="c"># MainWindow: navigation + QStackedWidget</span>
+│   │   ├── dashboard.py               <span class="c"># DashboardPage</span>
+│   │   ├── video_panel.py             <span class="c"># VideoPanel: VideoView + START/PAUSE/STOP</span>
+│   │   ├── statistics_panel.py        <span class="c"># StatisticsPanel: 8 StatCard + system info</span>
+│   │   ├── settings_panel.py          <span class="c"># SettingsPanel (Configuration page)</span>
+│   │   ├── report_panel.py            <span class="c"># ReportPanel</span>
+│   │   ├── source_panel.py            <span class="a">+ SourcePanel (Video Source page)</span>
+│   │   ├── log_panel.py               <span class="a">+ LogPanel (Event Logs page)</span>
+│   │   ├── processing_worker.py       <span class="a">+ ProcessingWorker (QThread)</span>
+│   │   ├── calibration_dialog.py      <span class="a">+ click 4 điểm perspective trên frame thật</span>
+│   │   ├── background.py              <span class="a">+ TaskRunner: probe nguồn / đọc frame ngoài GUI thread</span>
+│   │   ├── ui_helpers.py              <span class="a">+ panel, QMessageBox, BGR → QImage</span>
+│   │   └── <span class="d">widgets/</span>
+│   │       ├── __init__.py
+│   │       ├── stat_card.py
+│   │       ├── video_view.py
+│   │       └── log_view.py
+│   │
+│   ├── <span class="d">core/</span>                          <span class="c"># Domain CV — không import PySide6</span>
+│   │   ├── __init__.py
+│   │   ├── traffic_monitor.py
+│   │   ├── detector.py
+│   │   ├── tracker.py
+│   │   ├── counter.py
+│   │   ├── speed_estimator.py
+│   │   ├── zone_manager.py
+│   │   ├── alert_manager.py
+│   │   └── pipeline.py
+│   │
+│   ├── <span class="d">video/</span>
+│   │   ├── __init__.py
+│   │   ├── video_source.py            <span class="c"># VideoSource + File/Camera/RTSP + factory</span>
+│   │   ├── video_reader.py
+│   │   ├── video_writer.py
+│   │   └── frame_processor.py
+│   │
+│   ├── <span class="d">vision/</span>
+│   │   ├── __init__.py
+│   │   ├── annotations.py             <span class="c"># AnnotationRenderer</span>
+│   │   ├── transformer.py             <span class="c"># ViewTransformer</span>
+│   │   ├── geometry.py                <span class="c"># validate polygon, line helpers</span>
+│   │   └── coordinates.py             <span class="c"># anchors, ratio ↔ pixel</span>
+│   │
+│   ├── <span class="d">reports/</span>
+│   │   ├── __init__.py
+│   │   ├── report_generator.py
+│   │   ├── json_exporter.py
+│   │   └── csv_exporter.py
+│   │
+│   ├── <span class="d">config/</span>
+│   │   ├── __init__.py
+│   │   ├── settings.py                <span class="c"># AppConfig dataclass, load/save/validate</span>
+│   │   └── default_config.py
+│   │
+│   └── <span class="d">utils/</span>
+│       ├── __init__.py
+│       ├── logger.py
+│       ├── file_utils.py
+│       ├── time_utils.py
+│       ├── constants.py
+│       └── exceptions.py              <span class="a">+ cây exception của ứng dụng</span>
+│
+├── <span class="d">models/</span>
+│   └── yolov8n.pt                     <span class="c"># tải bằng scripts/download_model.py</span>
+├── <span class="d">data/</span>
+│   ├── input/
+│   ├── output/
+│   │   ├── videos/
+│   │   ├── reports/
+│   │   └── snapshots/
+│   └── samples/
+├── <span class="d">logs/</span>
+│   └── app.log
+├── <span class="d">tests/</span>
+│   ├── __init__.py
+│   ├── test_detector.py
+│   ├── test_tracker.py
+│   ├── test_counter.py
+│   ├── test_speed.py
+│   ├── test_report.py
+│   └── test_config.py
+├── <span class="d">scripts/</span>
+│   ├── download_model.py
+│   ├── test_camera.py
+│   ├── calibrate_perspective.py       <span class="c"># click 4 điểm → ghi perspective_source</span>
+│   └── smoke_test_gui.py              <span class="a">+ 34 kiểm tra end-to-end GUI với pipeline thật</span>
+└── <span class="d">assets/</span>
+    ├── icons/
+    └── <span class="d">styles/</span>
+        └── app.qss</pre>
+    </section>
+
+    <!-- ===================== 7 ===================== -->
+    <section class="sec" id="s7">
+      <div class="sec-head"><span class="sec-no">07</span><h2>Pipeline xử lý frame</h2></div>
+      <p class="sec-intro"><code>FrameProcessor.process_frame(frame)</code> thực thi đúng thứ tự dưới đây cho mỗi frame. Kiểu dữ liệu ghi dưới mỗi bước là đầu ra của bước đó.</p>
+      <div class="flow">
+        <div class="step"><span class="n">1</span><b>detect</b><small>np.ndarray → sv.Detections</small></div>
+        <div class="step"><span class="n">2</span><b>filter</b><small>conf ≥ thr ∧ class ∈ vehicles</small></div>
+        <div class="step"><span class="n">3</span><b>track</b><small>ByteTrack + Smoother → tracker_id</small></div>
+        <div class="step"><span class="n">4</span><b>count</b><small>LineZone.trigger → in/out ids</small></div>
+        <div class="step"><span class="n">5</span><b>speed</b><small>anchor → mét → km/h</small></div>
+        <div class="step"><span class="n">6</span><b>alert</b><small>speed &gt; limit → Alert</small></div>
+        <div class="step"><span class="n">7</span><b>annotate</b><small>→ annotated_frame</small></div>
+        <div class="step"><span class="n">8</span><b>dashboard</b><small>→ statistics dict</small></div>
+      </div>
+      <div class="note"><b>Chuẩn hoá bước “dashboard”</b>FrameProcessor không vẽ GUI. Bước 8 chỉ tổng hợp số liệu thành <code>statistics</code>; Worker phát <code>statistics_updated</code> để GUI tự cập nhật.</div>
+      <div class="code-title">app/video/frame_processor.py — hợp đồng</div>
+<pre class="code"><span class="k">@dataclass</span>(frozen=<span class="k">True</span>)
+<span class="k">class</span> <span class="n">FrameResult</span>:
+    annotated_frame: np.ndarray            <span class="c"># BGR, cùng kích thước frame vào</span>
+    detections: sv.Detections              <span class="c"># đã có tracker_id</span>
+    statistics: dict[str, Any]             <span class="c"># TrafficStatistics.to_dict()</span>
+    new_events: list[TrafficEvent]         <span class="c"># event phát sinh trong frame này</span>
+    frame_index: int
+
+<span class="k">class</span> <span class="n">FrameProcessor</span>:
+    <span class="k">def</span> <span class="n">process_frame</span>(self, frame: np.ndarray) -&gt; FrameResult:
+        detections = c.detector.filter_detections(c.detector.detect(frame))
+        detections = c.tracker.smooth(c.tracker.update(detections))
+        crossings = c.counter.process(detections)
+        speeds = c.speed_estimator.update(detections, time_s, c.zone_manager.in_speed_zone(detections))
+        events = self._crossing_events(crossings, speeds, time_s)        <span class="c"># VEHICLE_IN / VEHICLE_OUT</span>
+        events += self._speed_alerts(detections, speeds, time_s)         <span class="c"># SPEED_VIOLATION</span>
+        violation_mask, labels = self._labels(detections, speeds)
+        annotated = c.renderer.render(frame, detections, labels, violation_mask, ...)
+        <span class="k">return</span> FrameResult(annotated, detections, self.statistics(len(detections)), events, self._frame_index)</pre>
+      <p class="small muted">Vùng perspective (ZoneManager) chỉ giới hạn việc <b>đo tốc độ</b>. Xe nằm ngoài vùng này vẫn được track và đếm.</p>
+    </section>
+
+    <!-- ===================== 8 ===================== -->
+    <section class="sec" id="s8">
+      <div class="sec-head"><span class="sec-no">08</span><h2>Threading &amp; Signals</h2></div>
+      <p class="sec-intro">Inference và đọc video chạy trong <code>ProcessingWorker</code> (QObject được <code>moveToThread</code> sang một <code>QThread</code>). GUI chỉ nhận dữ liệu qua signal (queued connection, thread-safe).</p>
+      <div class="threads">
+        <div class="thread"><h4>MainThread (GUI)</h4><ul><li>QApplication event loop</li><li>MainWindow / pages</li><li>VideoView: QImage → QPixmap</li><li>StatCard, LogView</li><li>QMessageBox</li></ul></div>
+        <div class="signals">
+          <div class="sig">frame_ready(QImage)</div>
+          <div class="sig">statistics_updated(dict)</div>
+          <div class="sig">event_created(dict)</div>
+          <div class="sig">processing_started(dict)</div>
+          <div class="sig">processing_finished(dict)</div>
+          <div class="sig">error_occurred(str, str)</div>
+          <div class="sig r">start / pause / resume / stop</div>
+        </div>
+        <div class="thread"><h4>ProcessingWorker (QThread)</h4><ul><li>VideoReader</li><li>YOLO (VehicleDetector)</li><li>ByteTrack (VehicleTracker)</li><li>SpeedEstimator</li><li>FrameProcessor</li><li>VideoWriter · ReportGenerator</li></ul></div>
+      </div>
+      <div class="table-wrap"><table>
+        <tr><th>Signal</th><th>Payload</th><th>Thời điểm phát</th><th>GUI xử lý</th></tr>
+        <tr><td class="mono">frame_ready</td><td class="mono">QImage</td><td>Mỗi frame (khi <code>show_preview=True</code>)</td><td>VideoView scale giữ tỉ lệ và vẽ</td></tr>
+        <tr><td class="mono">statistics_updated</td><td class="mono">dict</td><td>Tối đa 5 lần/giây (throttle)</td><td>Cập nhật 8 StatCard + system info</td></tr>
+        <tr><td class="mono">event_created</td><td class="mono">dict (TrafficEvent)</td><td>Ngay khi có event</td><td>Thêm dòng vào LogView, badge đỏ nếu vi phạm</td></tr>
+        <tr><td class="mono">processing_started</td><td class="mono">dict (session info)</td><td>Sau khi mở source + load model thành công</td><td>Đổi trạng thái RUNNING, khoá Settings</td></tr>
+        <tr><td class="mono">processing_finished</td><td class="mono">dict (summary + output paths)</td><td>STOP hoặc hết video, sau khi đóng writer/ghi báo cáo</td><td>Trạng thái FINISHED, cập nhật Report page</td></tr>
+        <tr><td class="mono">error_occurred</td><td class="mono">(title, message, critical: bool)</td><td>Khi bắt exception (critical) hoặc cảnh báo không dừng phiên, ví dụ lỗi ghi video</td><td>QMessageBox Critical / Warning, ghi log</td></tr>
+      </table></div>
+      <div class="note warn"><b>Quy tắc bắt buộc</b>Worker phát <code>QImage</code> (đã <code>.copy()</code>), không phát <code>QPixmap</code> — QPixmap chỉ được tạo trong GUI thread. Pause dùng <code>threading.Event</code>; Stop dùng cờ được kiểm tra mỗi vòng lặp, sau đó <code>thread.quit()</code> + <code>thread.wait()</code>. Đóng cửa sổ khi đang chạy phải dừng worker an toàn.</div>
+      <div class="code-title">Chuyển frame OpenCV → QImage (trong worker)</div>
+<pre class="code"><span class="k">def</span> <span class="n">to_qimage</span>(frame_bgr: np.ndarray) -&gt; QImage:
+    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+    height, width, channels = rgb.shape
+    <span class="k">return</span> QImage(rgb.data, width, height, channels * width, QImage.Format.Format_RGB888).copy()</pre>
+      <div class="code-title">app/gui/processing_worker.py — khung</div>
+<pre class="code"><span class="k">class</span> <span class="n">ProcessingWorker</span>(QObject):
+    frame_ready = Signal(QImage)
+    statistics_updated = Signal(dict)
+    event_created = Signal(dict)
+    processing_started = Signal(dict)
+    processing_finished = Signal(dict)
+    error_occurred = Signal(str, str)
+
+    <span class="k">@Slot</span>()
+    <span class="k">def</span> <span class="n">run</span>(self) -&gt; <span class="k">None</span>:
+        <span class="k">try</span>:
+            self._monitor.open()                               <span class="c"># load model + mở source</span>
+            self.processing_started.emit(self._monitor.session_info())
+            <span class="k">for</span> result <span class="k">in</span> self._monitor.iter_results():
+                <span class="k">if</span> self._stop_requested.is_set():
+                    <span class="k">break</span>
+                self._resume_event.wait()                      <span class="c"># PAUSE</span>
+                self._emit_result(result)
+        <span class="k">except</span> TrafficMonitorError <span class="k">as</span> exc:
+            logger.error(<span class="s">"Processing failed: %s"</span>, exc)
+            self.error_occurred.emit(exc.title, str(exc))
+        <span class="k">finally</span>:
+            self.processing_finished.emit(self._monitor.close())</pre>
+    </section>
+
+    <!-- ===================== 9 ===================== -->
+    <section class="sec" id="s9">
+      <div class="sec-head"><span class="sec-no">09</span><h2>Đặc tả module</h2></div>
+      <p class="sec-intro">Hợp đồng public của từng class. Tên method theo đúng yêu cầu gốc; các method đánh dấu <span class="tag add">+</span> là bổ sung để các thành phần ghép được với nhau.</p>
+
+      <div class="module">
+        <div class="module-h"><h3>VehicleDetector</h3><span class="path">app/core/detector.py</span><span class="tag">FR-01 · FR-02</span></div>
+        <div class="module-b">
+          <p class="small muted">Bọc model Ultralytics YOLO. Pipeline: <code>frame → YOLO → sv.Detections → confidence filter → vehicle class filter</code>.</p>
+          <div class="table-wrap"><table>
+            <tr><th>Method</th><th>Trả về</th><th>Mô tả</th></tr>
+            <tr><td class="mono">__init__(model_path: Path, confidence_threshold: float = 0.30, device: str | None = None)</td><td class="mono">—</td><td>Chỉ lưu tham số, chưa load model.</td></tr>
+            <tr><td class="mono">load_model()</td><td class="mono">None</td><td>Kiểm tra file tồn tại, load <code>YOLO(model_path)</code>. Lỗi → <code>ModelLoadError</code>.</td></tr>
+            <tr><td class="mono">detect(frame: np.ndarray)</td><td class="mono">sv.Detections</td><td><code>model(frame, conf=thr, verbose=False)[0]</code> → <code>sv.Detections.from_ultralytics</code>. Lỗi → <code>InferenceError</code>.</td></tr>
+            <tr><td class="mono">filter_detections(detections)</td><td class="mono">sv.Detections</td><td>Giữ <code>confidence ≥ thr</code> và <code>class_id ∈ vehicle ids</code>. Hàm thuần, test được không cần model.</td></tr>
+            <tr><td class="mono">get_vehicle_classes()</td><td class="mono">dict[int, str]</td><td>Tra <code>model.names</code> để lấy id của car/motorcycle/bus/truck (COCO: 2, 3, 5, 7) — không hard-code id.</td></tr>
+          </table></div>
+          <ul class="rules"><li>Model mặc định <code>models/yolov8n.pt</code>, thay qua <code>AppConfig.model_path</code>.</li><li>Confidence mặc định <code>0.30</code>, miền hợp lệ <code>[0.05, 0.95]</code>.</li><li>Model không chứa lớp xe nào ⇒ <code>ModelLoadError</code> với thông báo rõ ràng.</li></ul>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>VehicleTracker</h3><span class="path">app/core/tracker.py</span><span class="tag">FR-03</span></div>
+        <div class="module-b">
+          <div class="table-wrap"><table>
+            <tr><th>Method</th><th>Trả về</th><th>Mô tả</th></tr>
+            <tr><td class="mono">initialize(frame_rate: int = 30)</td><td class="mono">None</td><td>Tạo <code>sv.ByteTrack(frame_rate=...)</code> và <code>sv.DetectionsSmoother(length=5)</code>.</td></tr>
+            <tr><td class="mono">update(detections)</td><td class="mono">sv.Detections</td><td><code>tracker.update_with_detections</code> → mỗi detection có <code>tracker_id</code>.</td></tr>
+            <tr><td class="mono">smooth(detections)</td><td class="mono">sv.Detections</td><td><code>smoother.update_with_detections</code> giảm jitter bounding box.</td></tr>
+            <tr><td class="mono">get_track_ids()</td><td class="mono">list[int]</td><td>Các tracker_id đang hoạt động ở frame hiện tại.</td></tr>
+            <tr><td class="mono">reset()</td><td class="mono">None</td><td>Tạo lại tracker + smoother (phiên mới).</td></tr>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>TrafficCounter</h3><span class="path">app/core/counter.py</span><span class="tag">FR-04</span></div>
+        <div class="module-b">
+          <div class="table-wrap"><table>
+            <tr><th>Method</th><th>Trả về</th><th>Mô tả</th></tr>
+            <tr><td class="mono">initialize_line(frame_width: int, frame_height: int, line_y_ratio: float)</td><td class="mono">None</td><td>Tạo <code>sv.LineZone(start=Point(0, y), end=Point(w, y), triggering_anchors=[Position.BOTTOM_CENTER])</code>, <code>y = int(h × ratio)</code>.</td></tr>
+            <tr><td class="mono">process(detections)</td><td class="mono">CrossingResult</td><td><code>crossed_in, crossed_out = line_zone.trigger(detections)</code>; cập nhật tổng và theo lớp, trả về danh sách tracker_id vừa qua line.</td></tr>
+            <tr><td class="mono">get_total_in() / get_total_out()</td><td class="mono">int</td><td>Tổng IN / OUT của phiên.</td></tr>
+            <tr><td class="mono">get_class_counts()</td><td class="mono">dict[str, dict[str, int]]</td><td><code>{"car": {"in": 12, "out": 9}, ...}</code> cho đủ 4 lớp (kể cả 0).</td></tr>
+            <tr><td class="mono">reset()</td><td class="mono">None</td><td>Xoá bộ đếm và tập ID đã đếm, tạo lại LineZone.</td></tr>
+          </table></div>
+          <ul class="rules"><li><b>Chống đếm trùng:</b> lưu <code>_counted_ids: set[int]</code>; ID đã có trong set bị bỏ qua dù xe dao động quanh line.</li><li>Quy ước chiều: xe di chuyển từ trên xuống (về phía camera) = <b>IN</b>, ngược lại = <b>OUT</b>. Nếu LineZone trả chiều ngược, đảo <code>start/end</code> — được kiểm chứng bằng <code>test_counter.py</code>.</li><li>Total Vehicles = <code>total_in + total_out</code> (số tracker_id duy nhất đã qua line).</li></ul>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>SpeedEstimator</h3><span class="path">app/core/speed_estimator.py</span><span class="tag">FR-05</span></div>
+        <div class="module-b">
+          <div class="table-wrap"><table>
+            <tr><th>Method</th><th>Trả về</th><th>Mô tả</th></tr>
+            <tr><td class="mono">initialize_transformer(source: np.ndarray, road_width_m: float, road_length_m: float, fps: float)</td><td class="mono">None</td><td>Validate 4 điểm, tạo <code>ViewTransformer</code>. Lỗi → <code>PerspectiveError</code>.</td></tr>
+            <tr><td class="mono">transform_points(points: np.ndarray)</td><td class="mono">np.ndarray</td><td>Pixel (N×2) → mét (N×2).</td></tr>
+            <tr><td class="mono">update_track_position(tracker_id: int, point_m: np.ndarray, frame_index: int)</td><td class="mono">None</td><td>Thêm vào <code>deque(maxlen=int(fps))</code> của ID đó.</td></tr>
+            <tr><td class="mono">calculate_speed(tracker_id: int)</td><td class="mono">float | None</td><td>Quãng đường / thời gian × 3.6. <code>None</code> nếu chưa đủ dữ liệu.</td></tr>
+            <tr><td class="mono">get_speed(tracker_id: int)</td><td class="mono">float | None</td><td>Tốc độ gần nhất đã tính (cache).</td></tr>
+            <tr><td class="mono">update(detections, frame_index) <span class="tag add">+</span></td><td class="mono">dict[int, float]</td><td>Tiện ích: lấy anchor bottom-center → transform → update → calculate cho toàn bộ detections.</td></tr>
+            <tr><td class="mono">get_speed_violations(speed_limit_kmh: float)</td><td class="mono">list[int]</td><td>tracker_id có tốc độ hiện tại &gt; limit.</td></tr>
+            <tr><td class="mono">reset()</td><td class="mono">None</td><td>Xoá lịch sử và cache.</td></tr>
+          </table></div>
+          <p class="small">Chi tiết thuật toán ở <a href="#s10">mục 10</a>.</p>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>AlertManager</h3><span class="path">app/core/alert_manager.py</span><span class="tag">FR-06 · FR-07 · FR-13</span></div>
+        <div class="module-b">
+          <div class="table-wrap"><table>
+            <tr><th>Method</th><th>Trả về</th><th>Mô tả</th></tr>
+            <tr><td class="mono">__init__(speed_limit_kmh: float = 80.0, active_window_s: float = 5.0)</td><td class="mono">—</td><td></td></tr>
+            <tr><td class="mono">check_speed(tracker_id, vehicle_type, speed_kmh)</td><td class="mono">TrafficEvent | None</td><td>Nếu <code>speed &gt; speed_limit</code> và ID chưa từng vi phạm → tạo + đăng ký alert.</td></tr>
+            <tr><td class="mono">create_speed_alert(tracker_id, vehicle_type, speed_kmh)</td><td class="mono">TrafficEvent</td><td>Dựng event <code>SPEED_VIOLATION</code> đủ 6 trường bắt buộc.</td></tr>
+            <tr><td class="mono">register_alert(alert)</td><td class="mono">None</td><td>Thêm vào history + active, ghi log WARNING.</td></tr>
+            <tr><td class="mono">get_active_alerts()</td><td class="mono">list[TrafficEvent]</td><td>Alert trong <code>active_window_s</code> giây gần nhất (để tô đỏ trên video).</td></tr>
+            <tr><td class="mono">get_alert_history()</td><td class="mono">list[TrafficEvent]</td><td>Toàn bộ alert của phiên.</td></tr>
+            <tr><td class="mono">clear_alerts()</td><td class="mono">None</td><td>Xoá active + history (phiên mới).</td></tr>
+          </table></div>
+          <ul class="rules"><li>Mỗi <code>tracker_id</code> tạo tối đa 1 <code>SPEED_VIOLATION</code> trong một phiên.</li><li>Alert bắt buộc chứa: <code>timestamp</code>, <code>tracker_id</code>, <code>vehicle_type</code>, <code>speed</code>, <code>speed_limit</code>, <code>event_type</code>.</li></ul>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>VideoSource</h3><span class="path">app/video/video_source.py</span><span class="tag">FR-14 · FR-15</span></div>
+        <div class="module-b">
+          <svg class="persp" viewBox="0 0 760 150" role="img" aria-label="VideoSource class hierarchy" style="margin-bottom:12px">
+            <g font-size="12" fill="var(--text)">
+              <rect x="270" y="10" width="220" height="44" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="380" y="30" text-anchor="middle" font-weight="600">VideoSource (ABC)</text><text x="380" y="46" text-anchor="middle" font-size="10.5" fill="var(--muted)">open · read · release · fps · size</text>
+              <rect x="30" y="96" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border-strong)"/><text x="130" y="115" text-anchor="middle">FileVideoSource</text><text x="130" y="129" text-anchor="middle" font-size="10.5" fill="var(--muted)">Path · kiểm tra tồn tại</text>
+              <rect x="280" y="96" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border-strong)"/><text x="380" y="115" text-anchor="middle">CameraVideoSource</text><text x="380" y="129" text-anchor="middle" font-size="10.5" fill="var(--muted)">index · CAP_DSHOW</text>
+              <rect x="530" y="96" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border-strong)"/><text x="630" y="115" text-anchor="middle">RTSPVideoSource</text><text x="630" y="129" text-anchor="middle" font-size="10.5" fill="var(--muted)">url · timeout · reconnect</text>
+            </g>
+            <g stroke="var(--border-strong)" fill="none"><path d="M380 54 V75 M130 75 H630 M130 75 V96 M380 75 V96 M630 75 V96"/></g>
+          </svg>
+          <div class="table-wrap"><table>
+            <tr><th>Thành phần</th><th>Mô tả</th></tr>
+            <tr><td class="mono">open() -&gt; None</td><td>Mở <code>cv2.VideoCapture</code>; kiểm tra <code>isOpened()</code>. Lỗi cụ thể theo lớp con.</td></tr>
+            <tr><td class="mono">read() -&gt; tuple[bool, np.ndarray | None]</td><td>Đọc 1 frame.</td></tr>
+            <tr><td class="mono">release() -&gt; None</td><td>Giải phóng capture; gọi được nhiều lần.</td></tr>
+            <tr><td class="mono">fps / frame_size / frame_count / description</td><td>Property. FPS = 0 hoặc NaN ⇒ fallback 25. <code>frame_count</code> = <code>None</code> với live source.</td></tr>
+            <tr><td class="mono">is_live: bool</td><td><code>False</code> cho file, <code>True</code> cho camera/RTSP (quyết định time base của SpeedEstimator).</td></tr>
+            <tr><td class="mono">create_video_source(config) -&gt; VideoSource</td><td>Factory theo <code>source_type</code>: <code>file</code> | <code>camera</code> | <code>rtsp</code>.</td></tr>
+          </table></div>
+          <ul class="rules"><li>GUI không bao giờ gọi <code>cv2.VideoCapture</code> trực tiếp.</li><li>RTSP: đặt <code>CAP_PROP_OPEN_TIMEOUT_MSEC</code> / <code>CAP_PROP_READ_TIMEOUT_MSEC</code>; mất kết nối → thử lại 3 lần (backoff 1s, 2s, 4s) rồi <code>RTSPTimeoutError</code>.</li><li><code>VideoReader</code> bọc source thành iterator <code>(frame_index, frame)</code>; <code>VideoWriter</code> khởi tạo lười ở frame đầu tiên với codec <code>mp4v</code>.</li></ul>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>ReportGenerator</h3><span class="path">app/reports/report_generator.py</span><span class="tag">FR-11 · FR-12</span></div>
+        <div class="module-b">
+          <div class="table-wrap"><table>
+            <tr><th>Method</th><th>Trả về</th><th>Mô tả</th></tr>
+            <tr><td class="mono">generate(session, statistics, events)</td><td class="mono">dict</td><td>Dựng report theo schema mục 11 từ dữ liệu phiên thật.</td></tr>
+            <tr><td class="mono">save_json(report, output_dir: Path)</td><td class="mono">Path</td><td>Uỷ quyền <code>JsonExporter</code>; ghi <code>traffic_report_YYYYMMDD_HHMMSS.json</code> (UTF-8, indent 2).</td></tr>
+            <tr><td class="mono">save_csv(events, output_dir: Path)</td><td class="mono">Path</td><td>Uỷ quyền <code>CsvExporter</code>; ghi danh sách event (UTF-8-sig để Excel đọc đúng tiếng Việt).</td></tr>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>AppConfig</h3><span class="path">app/config/settings.py</span><span class="tag">Mục 16</span></div>
+        <div class="module-b">
+          <p class="small muted">Dataclass duy nhất chứa cấu hình. Business logic nhận <code>AppConfig</code> qua constructor — không đọc hằng số rải rác. Bảng trường đầy đủ ở <a href="#s11">mục 11</a>.</p>
+<pre class="code"><span class="k">@dataclass</span>
+<span class="k">class</span> <span class="n">AppConfig</span>:
+    model_path: Path = DEFAULT_MODEL_PATH
+    confidence_threshold: float = <span class="s">0.30</span>
+    speed_limit_kmh: float = <span class="s">80.0</span>
+    line_y_ratio: float = <span class="s">0.55</span>
+    road_width_m: float = <span class="s">25.0</span>
+    road_length_m: float = <span class="s">250.0</span>
+    perspective_source: list[list[int]] = field(default_factory=default_perspective)
+    show_preview: bool = <span class="k">True</span>
+    save_output_video: bool = <span class="k">True</span>
+    save_report: bool = <span class="k">True</span>
+    <span class="c"># bổ sung</span>
+    source_type: str = <span class="s">"file"</span>
+    source_uri: str = <span class="s">""</span>
+    output_dir: Path = DEFAULT_OUTPUT_DIR
+    min_track_seconds: float = <span class="s">0.5</span>
+
+    <span class="k">def</span> <span class="n">validate</span>(self) -&gt; <span class="k">None</span>: ...            <span class="c"># raise ConfigError</span>
+    <span class="k">@classmethod</span>
+    <span class="k">def</span> <span class="n">load</span>(cls, path: Path) -&gt; <span class="s">"AppConfig"</span>: ...  <span class="c"># YAML; thiếu file → default</span>
+    <span class="k">def</span> <span class="n">save</span>(self, path: Path) -&gt; <span class="k">None</span>: ...</pre>
+        </div>
+      </div>
+
+      <div class="module">
+        <div class="module-h"><h3>main.py</h3><span class="path">traffic_monitor/main.py</span><span class="tag">Mục 26</span></div>
+        <div class="module-b">
+<pre class="code"><span class="k">def</span> <span class="n">main</span>() -&gt; int:
+    setup_logging(LOG_FILE)                       <span class="c"># 1. khởi động</span>
+    config = load_config_safely(CONFIG_FILE)      <span class="c"># 2. load configuration (lỗi → default + warning)</span>
+    app = QApplication(sys.argv)
+    app.setStyleSheet(read_stylesheet(STYLE_FILE))
+    window = MainWindow(config)                   <span class="c"># 3. tạo MainWindow</span>
+    window.show()
+    <span class="k">return</span> app.exec()                             <span class="c"># 4. chạy QApplication</span>
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    sys.exit(main())</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 10 ===================== -->
+    <section class="sec" id="s10">
+      <div class="sec-head"><span class="sec-no">10</span><h2>Đo tốc độ bằng Perspective Transform</h2></div>
+      <p class="sec-intro">Camera nhìn xiên nên khoảng cách pixel không tỉ lệ với khoảng cách thật. Ta ánh xạ vùng mặt đường hình thang (4 điểm trên ảnh) thành hình chữ nhật có kích thước thật <code>road_width_m × road_length_m</code>.</p>
+      <svg class="persp" viewBox="0 0 900 330" role="img" aria-label="Perspective transform">
+        <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+        <text x="30" y="28" font-size="12" fill="var(--muted)">ẢNH CAMERA (pixel)</text>
+        <rect x="30" y="40" width="360" height="260" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+        <polygon points="165,70 255,70 380,290 40,290" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>
+        <g fill="var(--accent)" font-size="12" font-weight="600">
+          <circle cx="165" cy="70" r="5"/><text x="140" y="64">A</text>
+          <circle cx="255" cy="70" r="5"/><text x="263" y="64">B</text>
+          <circle cx="380" cy="290" r="5"/><text x="360" y="284">C</text>
+          <circle cx="40" cy="290" r="5"/><text x="50" y="284">D</text>
+        </g>
+        <rect x="190" y="150" width="30" height="26" fill="none" stroke="var(--info)" stroke-width="1.5"/><circle cx="205" cy="176" r="4" fill="var(--info)"/>
+        <text x="228" y="180" font-size="11" fill="var(--info)">anchor bottom-center</text>
+        <path d="M410 170 L490 170" stroke="var(--accent)" stroke-width="2" marker-end="url(#ar2)"/>
+        <text x="450" y="160" font-size="11" text-anchor="middle" fill="var(--muted)">M = getPerspectiveTransform</text>
+        <text x="520" y="28" font-size="12" fill="var(--muted)">MẶT ĐƯỜNG (mét)</text>
+        <rect x="600" y="40" width="120" height="260" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <g font-size="11" fill="var(--text)">
+          <text x="600" y="34" text-anchor="middle">(0,0)</text><text x="720" y="34" text-anchor="middle">(W,0)</text>
+          <text x="600" y="316" text-anchor="middle">(0,L)</text><text x="720" y="316" text-anchor="middle">(W,L)</text>
+          <text x="660" y="170" text-anchor="middle" fill="var(--muted)">W = road_width_m</text>
+          <text x="730" y="175" fill="var(--muted)">L = road_length_m</text>
+        </g>
+        <circle cx="648" cy="130" r="4" fill="var(--info)"/><circle cx="650" cy="195" r="4" fill="var(--info)"/>
+        <path d="M648 134 L650 191" stroke="var(--info)" stroke-dasharray="3 3"/>
+        <text x="600" y="215" font-size="11" fill="var(--info)" text-anchor="end">Δd (m)</text>
+      </svg>
+
+      <h3>Thuật toán</h3>
+      <ol>
+        <li>Lấy anchor <code>BOTTOM_CENTER</code> của mỗi detection: <code>detections.get_anchors_coordinates(sv.Position.BOTTOM_CENTER)</code>.</li>
+        <li>Biến đổi sang mét: <code>ViewTransformer.transform_points</code>.</li>
+        <li>Lưu <code>(frame_index, x_m, y_m)</code> vào <code>deque(maxlen=int(fps))</code> theo <code>tracker_id</code> (cửa sổ ~1 giây).</li>
+        <li><b>Không</b> tính ở frame đầu; chỉ tính khi <code>elapsed ≥ min_track_seconds</code> (mặc định 0.5 s).</li>
+        <li><code>speed_kmh = |v| × 3.6</code>, trong đó <code>v</code> là vận tốc hồi quy tuyến tính (least squares) của <code>x_m(t)</code>, <code>y_m(t)</code> trên cả cửa sổ.</li>
+        <li>Detection có cạnh dưới bị xe phía trước che (<code>geometry.occluded_bottom_mask</code>) không được lấy mẫu và lịch sử của nó được làm lại; giá trị &gt; 250 km/h bị loại.</li>
+      </ol>
+      <div class="note warn"><b>Vì sao không dùng hiệu hai đầu (điểm đầu – điểm cuối)</b>Khi kiểm thử trên <code>vehicles.mp4</code>, công thức hai đầu cho ra 204–221 km/h. Nguyên nhân là xe bị che một phần hoặc box đổi kích thước khiến anchor nhảy vài mét giữa hai frame. Sau khi dùng hồi quy và loại mẫu bị che, xe tải đo được 77–81 km/h, xe con 84–150 km/h, tốc độ lớn nhất 159 km/h.</div>
+      <div class="note"><b>Time base</b>Với video file, thời gian tính theo <code>frame_index / fps</code> của video — tốc độ đúng kể cả khi máy xử lý chậm hơn realtime. Với camera/RTSP, dùng <code>time.monotonic()</code> tại thời điểm đọc frame.</div>
+      <div class="code-title">app/vision/transformer.py</div>
+<pre class="code"><span class="k">class</span> <span class="n">ViewTransformer</span>:
+    <span class="k">def</span> <span class="n">__init__</span>(self, source: np.ndarray, target: np.ndarray) -&gt; <span class="k">None</span>:
+        self._matrix = cv2.getPerspectiveTransform(source.astype(np.float32), target.astype(np.float32))
+
+    <span class="k">def</span> <span class="n">transform_points</span>(self, points: np.ndarray) -&gt; np.ndarray:
+        <span class="k">if</span> points.size == 0:
+            <span class="k">return</span> points.reshape(-1, 2)
+        reshaped = points.reshape(-1, 1, 2).astype(np.float32)
+        <span class="k">return</span> cv2.perspectiveTransform(reshaped, self._matrix).reshape(-1, 2)
+
+<span class="c"># target = [[0, 0], [W - 1, 0], [W - 1, L - 1], [0, L - 1]]  với W = road_width_m, L = road_length_m</span></pre>
+      <div class="code-title">app/core/speed_estimator.py — calculate_speed</div>
+<pre class="code"><span class="k">def</span> <span class="n">calculate_speed</span>(self, tracker_id: int) -&gt; float | <span class="k">None</span>:
+    history = self._history.get(tracker_id)
+    <span class="k">if</span> <span class="k">not</span> history <span class="k">or</span> len(history) &lt; 2:
+        <span class="k">return</span> <span class="k">None</span>                                   <span class="c"># không tính ở frame đầu tiên</span>
+    (frame_start, x0, y0), (frame_end, x1, y1) = history[0], history[-1]
+    elapsed_s = (frame_end - frame_start) / self._fps
+    <span class="k">if</span> elapsed_s &lt; self._min_track_seconds:
+        <span class="k">return</span> <span class="k">None</span>
+    speed_kmh = math.hypot(x1 - x0, y1 - y0) / elapsed_s * <span class="s">3.6</span>
+    self._speeds[tracker_id] = speed_kmh
+    <span class="k">return</span> speed_kmh</pre>
+      <h3>Validate perspective_source</h3>
+      <ul><li>Đúng 4 điểm, mỗi điểm 2 số nguyên; thứ tự A (trên-trái) → B (trên-phải) → C (dưới-phải) → D (dưới-trái).</li><li>Tứ giác lồi, diện tích &gt; 0, không có 3 điểm thẳng hàng.</li><li>Sai ⇒ <code>PerspectiveError</code>; hướng dẫn chạy <code>python scripts/calibrate_perspective.py --video data/samples/x.mp4</code> để click chọn 4 điểm và ghi vào <code>config.yaml</code>.</li></ul>
+    </section>
+
+    <!-- ===================== 11 ===================== -->
+    <section class="sec" id="s11">
+      <div class="sec-head"><span class="sec-no">11</span><h2>Mô hình dữ liệu</h2></div>
+      <h3>AppConfig — bảng tham số</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Trường</th><th>Kiểu</th><th>Mặc định</th><th>Ràng buộc</th><th>Sửa trên GUI</th></tr>
+        <tr><td class="mono">model_path</td><td class="mono">Path</td><td class="mono">models/yolov8n.pt</td><td>File <code>.pt</code> tồn tại</td><td>Configuration</td></tr>
+        <tr><td class="mono">confidence_threshold</td><td class="mono">float</td><td class="mono">0.30</td><td>0.05 – 0.95</td><td>Configuration</td></tr>
+        <tr><td class="mono">speed_limit_kmh</td><td class="mono">float</td><td class="mono">80</td><td>10 – 250</td><td>Configuration</td></tr>
+        <tr><td class="mono">line_y_ratio</td><td class="mono">float</td><td class="mono">0.55</td><td>0.10 – 0.90</td><td>Configuration</td></tr>
+        <tr><td class="mono">road_width_m</td><td class="mono">float</td><td class="mono">25</td><td>&gt; 0, ≤ 200</td><td>Configuration</td></tr>
+        <tr><td class="mono">road_length_m</td><td class="mono">float</td><td class="mono">250</td><td>&gt; 0, ≤ 1000</td><td>Configuration</td></tr>
+        <tr><td class="mono">perspective_source</td><td class="mono">list[list[int]]</td><td class="mono">theo video mẫu</td><td>4 điểm, tứ giác lồi</td><td>Script calibrate</td></tr>
+        <tr><td class="mono">show_preview</td><td class="mono">bool</td><td class="mono">true</td><td>—</td><td>Configuration</td></tr>
+        <tr><td class="mono">save_output_video</td><td class="mono">bool</td><td class="mono">true</td><td>—</td><td>Configuration</td></tr>
+        <tr><td class="mono">save_report</td><td class="mono">bool</td><td class="mono">true</td><td>—</td><td>Configuration</td></tr>
+        <tr><td class="mono">source_type <span class="tag add">+</span></td><td class="mono">str</td><td class="mono">file</td><td>file | camera | rtsp</td><td>Video Source</td></tr>
+        <tr><td class="mono">source_uri <span class="tag add">+</span></td><td class="mono">str</td><td class="mono">""</td><td>path / index / rtsp url</td><td>Video Source</td></tr>
+        <tr><td class="mono">output_dir <span class="tag add">+</span></td><td class="mono">Path</td><td class="mono">data/output</td><td>Ghi được</td><td>Configuration</td></tr>
+        <tr><td class="mono">min_track_seconds <span class="tag add">+</span></td><td class="mono">float</td><td class="mono">0.5</td><td>0.2 – 3.0</td><td>Configuration</td></tr>
+        <tr><td class="mono">perspective_reference_size <span class="tag add">+</span></td><td class="mono">list[int]</td><td class="mono">[3840, 2160]</td><td>w, h &gt; 0 (tự scale điểm theo video)</td><td>Configuration / Calibrate</td></tr>
+        <tr><td class="mono">device <span class="tag add">+</span></td><td class="mono">str</td><td class="mono">auto</td><td>auto | cuda:0 | cpu (env <code>TM_DEVICE</code>)</td><td>Configuration</td></tr>
+        <tr><td class="mono">save_snapshots <span class="tag add">+</span></td><td class="mono">bool</td><td class="mono">true</td><td>Ảnh JPEG mỗi vi phạm → <code>output/snapshots</code></td><td>Configuration</td></tr>
+        <tr><td class="mono">rtsp_timeout_ms <span class="tag add">+</span></td><td class="mono">int</td><td class="mono">5000</td><td>1000 – 60000</td><td>Video Source</td></tr>
+      </table></div>
+
+      <h3>TrafficEvent</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Trường</th><th>Kiểu</th><th>Ví dụ</th><th>Ghi chú</th></tr>
+        <tr><td class="mono">timestamp</td><td class="mono">str (ISO 8601)</td><td class="mono">2026-09-28T12:31:02</td><td>GUI hiển thị <code>HH:MM:SS</code></td></tr>
+        <tr><td class="mono">frame_index</td><td class="mono">int</td><td class="mono">1843</td><td>Bổ sung để truy vết trong video</td></tr>
+        <tr><td class="mono">tracker_id</td><td class="mono">int</td><td class="mono">21</td><td>Hiển thị “Vehicle #21”</td></tr>
+        <tr><td class="mono">vehicle_type</td><td class="mono">str</td><td class="mono">car</td><td>car | motorcycle | bus | truck</td></tr>
+        <tr><td class="mono">speed_kmh</td><td class="mono">float | null</td><td class="mono">92.4</td><td>null nếu chưa đo được</td></tr>
+        <tr><td class="mono">speed_limit_kmh</td><td class="mono">float</td><td class="mono">80</td><td></td></tr>
+        <tr><td class="mono">event_type</td><td class="mono">str</td><td class="mono">SPEED_VIOLATION</td><td>VEHICLE_IN | VEHICLE_OUT | SPEED_VIOLATION</td></tr>
+      </table></div>
+
+      <h3>Schema báo cáo JSON</h3>
+<pre class="code">{
+  <span class="n">"session"</span>: { <span class="n">"session_id"</span>: <span class="s">"20260928_123055"</span>, <span class="n">"started_at"</span>: <span class="s">"…"</span>, <span class="n">"ended_at"</span>: <span class="s">"…"</span>,
+               <span class="n">"duration_s"</span>: 184.2, <span class="n">"frames_processed"</span>: 5526, <span class="n">"app_version"</span>: <span class="s">"1.0.0"</span> },
+  <span class="n">"source"</span>:  { <span class="n">"type"</span>: <span class="s">"file"</span>, <span class="n">"uri"</span>: <span class="s">"data/input/highway.mp4"</span>, <span class="n">"resolution"</span>: [1920, 1080], <span class="n">"fps"</span>: 30.0 },
+  <span class="n">"config"</span>:  { <span class="n">"model_path"</span>: <span class="s">"models/yolov8n.pt"</span>, <span class="n">"confidence_threshold"</span>: 0.3, <span class="n">"speed_limit_kmh"</span>: 80, … },
+  <span class="n">"total_in"</span>: 57,
+  <span class="n">"total_out"</span>: 49,
+  <span class="n">"total_vehicles"</span>: 106,
+  <span class="n">"vehicle_counts"</span>: { <span class="n">"car"</span>: {<span class="n">"in"</span>: 41, <span class="n">"out"</span>: 35}, <span class="n">"motorcycle"</span>: {…}, <span class="n">"bus"</span>: {…}, <span class="n">"truck"</span>: {…} },
+  <span class="n">"speed_violations"</span>: { <span class="n">"count"</span>: 7, <span class="n">"items"</span>: [ <span class="c">/* TrafficEvent[] event_type = SPEED_VIOLATION */</span> ] },
+  <span class="n">"maximum_speed"</span>: { <span class="n">"speed_kmh"</span>: 118.6, <span class="n">"tracker_id"</span>: 73, <span class="n">"vehicle_type"</span>: <span class="s">"car"</span> },
+  <span class="n">"events"</span>: [ <span class="c">/* TrafficEvent[] — toàn bộ event history */</span> ],
+  <span class="n">"outputs"</span>: { <span class="n">"video"</span>: <span class="s">"data/output/videos/traffic_output_20260928_123055.mp4"</span> }
+}</pre>
+      <p class="small muted">Các con số trong ví dụ trên chỉ minh hoạ định dạng.</p>
+      <h3>CSV — danh sách event</h3>
+<pre class="code">timestamp,frame_index,tracker_id,vehicle_type,speed_kmh,speed_limit_kmh,event_type
+2026-09-28T12:31:02,1843,21,car,92.4,80,SPEED_VIOLATION</pre>
+    </section>
+
+    <!-- ===================== 12 ===================== -->
+    <section class="sec" id="s12">
+      <div class="sec-head"><span class="sec-no">12</span><h2>Đặc tả GUI</h2></div>
+      <div class="grid g2">
+        <div class="card"><h4>Nguyên tắc thiết kế</h4>
+          <ul class="small"><li>Dark professional dashboard, phong cách industrial monitoring.</li><li>Nền phẳng, không gradient, tối đa 1 màu nhấn (amber) + màu trạng thái (xanh IN, lam OUT, đỏ vi phạm).</li><li>Typography rõ: số liệu dùng font monospace, nhãn chữ hoa nhỏ.</li><li>Mật độ thông tin cao, khoảng cách 8/12/16 px nhất quán.</li><li>Style tập trung trong <code>assets/styles/app.qss</code>.</li></ul>
+        </div>
+        <div class="card"><h4>Bảng màu QSS</h4>
+          <div class="table-wrap" style="margin:0"><table>
+            <tr><td><span style="display:inline-block;width:14px;height:14px;background:#0e1013;border:1px solid #444;border-radius:3px;vertical-align:-2px"></span> <code>#0E1013</code></td><td>Nền cửa sổ</td></tr>
+            <tr><td><span style="display:inline-block;width:14px;height:14px;background:#15181C;border:1px solid #444;border-radius:3px;vertical-align:-2px"></span> <code>#15181C</code></td><td>Panel / card</td></tr>
+            <tr><td><span style="display:inline-block;width:14px;height:14px;background:#D9A441;border-radius:3px;vertical-align:-2px"></span> <code>#D9A441</code></td><td>Nhấn, counting line, focus</td></tr>
+            <tr><td><span style="display:inline-block;width:14px;height:14px;background:#4FAE7B;border-radius:3px;vertical-align:-2px"></span> <code>#4FAE7B</code> / <span style="display:inline-block;width:14px;height:14px;background:#5B9BD5;border-radius:3px;vertical-align:-2px"></span> <code>#5B9BD5</code></td><td>IN / OUT</td></tr>
+            <tr><td><span style="display:inline-block;width:14px;height:14px;background:#E05A5A;border-radius:3px;vertical-align:-2px"></span> <code>#E05A5A</code></td><td>SPEED_VIOLATION, lỗi</td></tr>
+          </table></div>
+        </div>
+      </div>
+      <h3>Các trang của MainWindow</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Trang</th><th>File / Class</th><th>Thành phần</th><th>Hành vi</th></tr>
+        <tr><td><b>Dashboard</b></td><td class="mono">dashboard.py · DashboardPage<br>video_panel.py · statistics_panel.py</td><td>LIVE VIDEO; START / PAUSE / STOP; 8 stat card; system info (FPS, status, source, model, confidence); live events</td><td>START tạo worker mới; PAUSE ↔ RESUME; STOP dừng an toàn và xuất output. Nút bị disable theo trạng thái.</td></tr>
+        <tr><td><b>Video Source</b></td><td class="mono">source_panel.py · SourcePanel</td><td>Chọn loại nguồn (File / Webcam / RTSP), Browse, camera index, RTSP URL + timeout, Apply</td><td>Validate ngay (file tồn tại, URL đúng dạng). Lưu vào <code>source_type/source_uri</code>.</td></tr>
+        <tr><td><b>Configuration</b></td><td class="mono">settings_panel.py · SettingsPanel</td><td>Select model, video, confidence, speed limit, line position, road width/length, output dir; SAVE CONFIG, RESET DEFAULT</td><td>SAVE: validate → ghi <code>config.yaml</code>. Bị khoá khi đang RUNNING.</td></tr>
+        <tr><td><b>Reports</b></td><td class="mono">report_panel.py · ReportPanel</td><td>Total, IN, OUT, 4 lớp, violations, max speed; Export JSON, Export CSV, Open Output Folder</td><td>Chỉ bật export khi có dữ liệu phiên. Open folder dùng <code>QDesktopServices.openUrl</code>.</td></tr>
+        <tr><td><b>Event Logs</b></td><td class="mono">log_panel.py · LogPanel<br>widgets/log_view.py</td><td>Bảng event realtime, lọc theo loại, tìm theo ID, auto-scroll</td><td>Nhận <code>event_created</code>; giới hạn hiển thị 5 000 dòng (dữ liệu đầy đủ vẫn nằm trong báo cáo).</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 13 ===================== -->
+    <section class="sec" id="s13">
+      <div class="sec-head"><span class="sec-no">13</span><h2>UI Demo tương tác</h2></div>
+      <div class="note warn"><b>Đây là mockup, không phải ứng dụng</b>Mọi số liệu dưới đây do một mô phỏng chạy trong trình duyệt sinh ra để minh hoạ bố cục và hành vi GUI — không phải output của YOLO. Mô phỏng vẫn tuân theo đúng logic đặc tả: chỉ detection có confidence ≥ threshold mới được track; tốc độ đo từ anchor qua phép biến đổi phối cảnh dùng <code>road_width_m/road_length_m</code> (đặt sai kích thước đường sẽ làm sai tốc độ); mỗi ID chỉ được đếm và cảnh báo 1 lần.</div>
+      <p class="demo-note">Thử: bấm <b>START / PAUSE / STOP</b> · đổi <b>Confidence</b>, <b>Line position</b>, <b>Speed limit</b> trong <b>Configuration</b> rồi SAVE · xuất <b>JSON/CSV</b> ở trang <b>Reports</b>.</p>
+
+      <div class="demo-wrap">
+        <div class="app" id="app">
+          <div class="app-title"><span class="logo"></span><span>Traffic Monitor Desktop — v1.0.0</span><span class="wc"><span>—</span><span>☐</span><span>✕</span></span></div>
+          <div class="app-body">
+            <nav class="app-nav">
+              <div class="grp">MONITOR</div>
+              <button class="nav-btn active" data-page="dashboard"><svg viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="5.5" height="6"/><rect x="9" y="1.5" width="5.5" height="3.5"/><rect x="9" y="7" width="5.5" height="7.5"/><rect x="1.5" y="9.5" width="5.5" height="5"/></svg>Dashboard</button>
+              <button class="nav-btn" data-page="source"><svg viewBox="0 0 16 16"><rect x="1.5" y="3.5" width="9" height="9" rx="1"/><path d="M10.5 6.5l4-2v7l-4-2"/></svg>Video Source</button>
+              <button class="nav-btn" data-page="config"><svg viewBox="0 0 16 16"><path d="M2 4h7M12 4h2M2 12h2M7 12h7M2 8h3M8 8h6"/><circle cx="10.5" cy="4" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/><circle cx="6.5" cy="8" r="1.5"/></svg>Configuration</button>
+              <div class="grp">DATA</div>
+              <button class="nav-btn" data-page="reports"><svg viewBox="0 0 16 16"><path d="M3 1.5h7l3 3v10H3z"/><path d="M6 8v4M8.5 6v6M11 10v2"/></svg>Reports</button>
+              <button class="nav-btn" data-page="logs"><svg viewBox="0 0 16 16"><path d="M2 3h12M2 6.5h12M2 10h8M2 13.5h6"/></svg>Event Logs<span class="badge" id="navBadge">0</span></button>
+              <div class="nav-foot">MODEL <b id="navModel">yolov8n.pt</b><br>DEVICE <b>cpu</b><br>SUPERVISION <b>0.26</b></div>
+            </nav>
+
+            <div class="app-main">
+              <!-- Dashboard -->
+              <section class="page active" data-page="dashboard">
+                <div class="pg-head">
+                  <div><h3>Dashboard</h3><span class="sub">LIVE VIDEO · <span id="dSrc">data/samples/highway_01.mp4</span></span></div>
+                  <div class="right">
+                    <span class="pill" id="statusPill">IDLE</span>
+                    <button class="qbtn primary" id="btnStart">▶ START</button>
+                    <button class="qbtn" id="btnPause" disabled>❚❚ PAUSE</button>
+                    <button class="qbtn danger" id="btnStop" disabled>■ STOP</button>
+                  </div>
+                </div>
+                <div class="dash-grid">
+                  <div class="video-box"><canvas id="cv" width="960" height="540"></canvas></div>
+                  <div class="side">
+                    <div class="panel"><div class="panel-h">SYSTEM</div>
+                      <dl class="kv">
+                        <dt>FPS</dt><dd id="sFps">—</dd>
+                        <dt>Status</dt><dd id="sStatus">Idle</dd>
+                        <dt>Source</dt><dd id="sSource">highway_01.mp4</dd>
+                        <dt>Model</dt><dd id="sModel">yolov8n.pt</dd>
+                        <dt>Confidence</dt><dd id="sConf">0.30</dd>
+                        <dt>Speed limit</dt><dd id="sLimit">80 km/h</dd>
+                        <dt>Frame</dt><dd id="sFrame">0</dd>
+                        <dt>Active tracks</dt><dd id="sTracks">0</dd>
+                      </dl>
+                    </div>
+                    <div class="panel grow"><div class="panel-h"><span>LIVE EVENTS</span><span id="evCount">0</span></div><div class="mini-log" id="miniLog"><div class="empty">Chưa có sự kiện</div></div></div>
+                  </div>
+                </div>
+                <div class="cards">
+                  <div class="stat tot"><div class="l">Total Vehicles</div><div class="v" data-k="total">0</div></div>
+                  <div class="stat in"><div class="l">Vehicles IN</div><div class="v" data-k="in">0</div></div>
+                  <div class="stat out"><div class="l">Vehicles OUT</div><div class="v" data-k="out">0</div></div>
+                  <div class="stat"><div class="l">Cars</div><div class="v" data-k="car">0</div></div>
+                  <div class="stat"><div class="l">Motorcycles</div><div class="v" data-k="motorcycle">0</div></div>
+                  <div class="stat"><div class="l">Buses</div><div class="v" data-k="bus">0</div></div>
+                  <div class="stat"><div class="l">Trucks</div><div class="v" data-k="truck">0</div></div>
+                  <div class="stat vio" id="vioCard"><div class="l">Speed Violations</div><div class="v" data-k="viol">0</div></div>
+                </div>
+              </section>
+
+              <!-- Video Source -->
+              <section class="page" data-page="source">
+                <div class="pg-head"><div><h3>Video Source</h3><span class="sub">FILE · WEBCAM · RTSP — VideoSource interface</span></div></div>
+                <div class="src-type">
+                  <label><input type="radio" name="stype" value="file" checked> <b>Local video</b><small>FileVideoSource</small></label>
+                  <label><input type="radio" name="stype" value="camera"> <b>Webcam</b><small>CameraVideoSource</small></label>
+                  <label><input type="radio" name="stype" value="rtsp"> <b>RTSP stream</b><small>RTSPVideoSource</small></label>
+                </div>
+                <div class="fgroup">
+                  <div class="src-pane on" data-src="file">
+                    <h5>VIDEO FILE</h5>
+                    <div class="frow"><label>File</label><div class="ctl"><input type="text" id="fPath" value="data/samples/highway_01.mp4" readonly><button class="qbtn" id="fBrowse">Browse…</button><input type="file" id="fInput" accept="video/*" hidden></div></div>
+                    <div class="frow"><label>Thông tin</label><div class="ctl"><span class="rv" id="fMeta" style="text-align:left;color:var(--a-muted)">Chọn file để đọc độ phân giải, thời lượng (đọc thật từ file trên máy bạn)</span></div></div>
+                  </div>
+                  <div class="src-pane" data-src="camera">
+                    <h5>WEBCAM</h5>
+                    <div class="frow"><label>Camera index</label><div class="ctl"><input type="number" id="camIdx" value="0" min="0" max="9" style="width:90px"></div></div>
+                    <div class="frow"><label>Backend</label><div class="ctl"><select id="camBackend" style="width:200px"><option>CAP_DSHOW (Windows)</option><option>CAP_MSMF</option><option>CAP_ANY</option></select></div></div>
+                  </div>
+                  <div class="src-pane" data-src="rtsp">
+                    <h5>RTSP</h5>
+                    <div class="frow"><label>RTSP URL</label><div class="ctl"><input type="text" id="rtspUrl" placeholder="rtsp://user:pass@192.168.1.10:554/stream1"></div></div>
+                    <div class="frow"><label>Open timeout (ms)</label><div class="ctl"><input type="number" id="rtspTo" value="5000" min="1000" step="500" style="width:120px"></div></div>
+                    <div class="frow"><label>Reconnect</label><div class="ctl"><span class="rv" style="text-align:left;color:var(--a-muted)">3 lần · backoff 1s / 2s / 4s</span></div></div>
+                  </div>
+                  <div class="toolbar" style="margin-top:12px;justify-content:flex-end"><button class="qbtn primary" id="srcApply">APPLY SOURCE</button></div>
+                </div>
+                <p style="margin:0;color:var(--a-faint);font-size:12px">Trong mockup, khung video luôn hiển thị cảnh mô phỏng; nguồn đã chọn chỉ được ghi nhận vào cấu hình và system info.</p>
+              </section>
+
+              <!-- Configuration -->
+              <section class="page" data-page="config">
+                <div class="pg-head"><div><h3>Configuration</h3><span class="sub">AppConfig → config.yaml</span></div>
+                  <div class="right"><button class="qbtn" id="cfgReset">RESET DEFAULT</button><button class="qbtn primary" id="cfgSave">SAVE CONFIG</button></div></div>
+                <div class="form">
+                  <div class="fgroup">
+                    <h5>MODEL &amp; DETECTION</h5>
+                    <div class="frow"><label>Model</label><div class="ctl"><select id="cModel"><option>models/yolov8n.pt</option><option>models/yolov8s.pt</option><option>models/yolov8m.pt</option><option>models/yolo11n.pt</option></select></div></div>
+                    <div class="frow" data-f="confidence_threshold"><label>Confidence</label><div class="ctl"><input type="range" id="cConf" min="0.05" max="0.95" step="0.05"><span class="rv" id="cConfV"></span></div></div>
+                    <div class="frow" data-f="speed_limit_kmh"><label>Speed limit (km/h)</label><div class="ctl"><input type="number" id="cLimit" min="10" max="250" step="5"></div></div>
+                    <div class="frow" data-f="line_y_ratio"><label>Line position (y)</label><div class="ctl"><input type="range" id="cLine" min="0.10" max="0.90" step="0.01"><span class="rv" id="cLineV"></span></div></div>
+                    <h5 style="margin-top:14px">SPEED CALIBRATION</h5>
+                    <div class="frow" data-f="road_width_m"><label>Road width (m)</label><div class="ctl"><input type="number" id="cRW" min="1" max="200" step="0.5"></div></div>
+                    <div class="frow" data-f="road_length_m"><label>Road length (m)</label><div class="ctl"><input type="number" id="cRL" min="1" max="1000" step="1"></div></div>
+                    <p style="margin:4px 0 0;color:var(--a-faint);font-size:11.5px">Cảnh mô phỏng có kích thước thật 25 × 250 m. Đổi giá trị để thấy tốc độ đo sai khi calibration sai.</p>
+                  </div>
+                  <div class="fgroup">
+                    <h5>OUTPUT</h5>
+                    <div class="frow" data-f="output_dir"><label>Output directory</label><div class="ctl"><input type="text" id="cOut"></div></div>
+                    <div class="frow"><label>Options</label><div class="ctl" style="flex-wrap:wrap;gap:12px;font-size:12.5px">
+                      <label><input type="checkbox" id="cSaveVid"> save_output_video</label>
+                      <label><input type="checkbox" id="cSaveRep"> save_report</label>
+                      <label><input type="checkbox" id="cPreview"> show_preview</label></div></div>
+                    <h5 style="margin-top:14px">PREVIEW · config.yaml</h5>
+                    <pre class="yaml" id="yaml"></pre>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Reports -->
+              <section class="page" data-page="reports">
+                <div class="pg-head"><div><h3>Reports</h3><span class="sub" id="repSession">Chưa có phiên xử lý</span></div>
+                  <div class="right"><button class="qbtn" id="expJson">Export JSON</button><button class="qbtn" id="expCsv">Export CSV</button><button class="qbtn ghost" id="openFolder">Open Output Folder</button></div></div>
+                <div class="rep-grid" id="repGrid"></div>
+                <div class="panel"><div class="panel-h">COUNTS BY CLASS</div>
+                  <div class="bars" id="bars"></div>
+                  <div class="legend"><span><i style="background:var(--a-green)"></i>IN</span><span><i style="background:var(--a-blue)"></i>OUT</span></div>
+                </div>
+              </section>
+
+              <!-- Event logs -->
+              <section class="page" data-page="logs">
+                <div class="pg-head"><div><h3>Event Logs</h3><span class="sub">REALTIME · event_created</span></div>
+                  <div class="right toolbar">
+                    <select id="lgFilter"><option value="">All events</option><option>SPEED_VIOLATION</option><option>VEHICLE_IN</option><option>VEHICLE_OUT</option></select>
+                    <input type="text" id="lgSearch" placeholder="Track ID" style="width:100px">
+                    <label style="font-size:12px;color:var(--a-muted)"><input type="checkbox" id="lgAuto" checked> Auto-scroll</label>
+                  </div></div>
+                <div class="log-table" id="logWrap"><table><thead><tr><th>Time</th><th>Frame</th><th>Track ID</th><th>Vehicle</th><th>Speed</th><th>Limit</th><th>Event</th></tr></thead><tbody id="logBody"></tbody></table></div>
+              </section>
+            </div>
+          </div>
+          <div class="app-status"><span><span class="dot" id="stDot"></span><span id="stText">Ready</span></span><span id="stCfg">config.yaml</span><span class="r" id="stSess">session —</span></div>
+          <div class="dlg-layer" id="dlgLayer"></div>
+          <div class="toast" id="toast"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 14 ===================== -->
+    <section class="sec" id="s14">
+      <div class="sec-head"><span class="sec-no">14</span><h2>Annotation</h2></div>
+      <p class="sec-intro">Toàn bộ vẽ lên frame nằm trong <code>app/vision/annotations.py</code> (<code>AnnotationRenderer</code>), dùng annotator của Supervision với <code>color_lookup=sv.ColorLookup.TRACK</code> để mỗi ID một màu.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Phần tử</th><th>Công cụ</th><th>Quy cách</th></tr>
+        <tr><td>Bounding box</td><td class="mono">sv.BoxAnnotator</td><td>Màu theo tracker_id; đỏ <code>#E05A5A</code> nếu ID đang vi phạm.</td></tr>
+        <tr><td>Class · Confidence · Tracker ID · Speed</td><td class="mono">sv.LabelAnnotator</td><td>Định dạng <code>#21 car 0.87 | 92 km/h</code>; chưa đủ dữ liệu tốc độ thì bỏ phần km/h.</td></tr>
+        <tr><td>Speed violation</td><td class="mono">LabelAnnotator (màu riêng)</td><td>Nền label đỏ, tiền tố <code>⚠</code> / <code>OVER</code>.</td></tr>
+        <tr><td>Tracking trace</td><td class="mono">sv.TraceAnnotator</td><td><code>trace_length = fps × 2</code>, anchor BOTTOM_CENTER.</td></tr>
+        <tr><td>Counting line + IN/OUT</td><td class="mono">cv2.line + text box</td><td>Line amber, số IN/OUT ở đầu line. Không dùng <code>sv.LineZoneAnnotator</code> vì annotator đó hiển thị số đếm thô của LineZone (có thể đếm lại khi xe qua lại line); số hiển thị phải là số đã chống trùng của <code>TrafficCounter</code>.</td></tr>
+        <tr><td>Vùng đo tốc độ</td><td class="mono">sv.draw_polygon</td><td>Tứ giác <code>perspective_source</code>, nét mảnh.</td></tr>
+        <tr><td>Dashboard overlay</td><td class="mono">cv2.rectangle + putText</td><td>Góc trên trái: IN, OUT, TOTAL, VIOLATIONS, FPS — nền đen 60% opacity. Được ghi cả vào video output.</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 15 ===================== -->
+    <section class="sec" id="s15">
+      <div class="sec-head"><span class="sec-no">15</span><h2>Xử lý lỗi</h2></div>
+      <p class="sec-intro">Mọi lỗi được biểu diễn bằng exception riêng kế thừa <code>TrafficMonitorError</code> (<code>app/utils/exceptions.py</code>). Worker bắt lỗi và phát <code>error_occurred</code>; GUI hiển thị <code>QMessageBox</code>; ứng dụng không crash.</p>
+<pre class="code"><span class="k">class</span> <span class="n">TrafficMonitorError</span>(Exception):          title = <span class="s">"Lỗi"</span>
+├── <span class="n">ModelLoadError</span>                             <span class="c"># model không tồn tại / không load được</span>
+├── <span class="n">InferenceError</span>
+├── <span class="n">ConfigError</span>
+├── <span class="n">PerspectiveError</span>
+├── <span class="n">VideoWriterError</span>
+└── <span class="n">VideoSourceError</span>
+    ├── <span class="n">VideoNotFoundError</span>
+    ├── <span class="n">VideoOpenError</span>
+    ├── <span class="n">CameraConnectionError</span>
+    └── <span class="n">RTSPTimeoutError</span></pre>
+      <div class="table-wrap"><table>
+        <tr><th>#</th><th>Tình huống</th><th>Phát hiện tại</th><th>Exception</th><th>QMessageBox</th><th>Log</th><th>Khôi phục</th></tr>
+        <tr><td>1</td><td>Model không tồn tại</td><td class="mono">VehicleDetector.load_model</td><td class="mono">ModelLoadError</td><td>Critical</td><td>ERROR</td><td>Không start; quay về IDLE</td></tr>
+        <tr><td>2</td><td>Video không tồn tại</td><td class="mono">FileVideoSource.open</td><td class="mono">VideoNotFoundError</td><td>Critical</td><td>ERROR</td><td>Không start; mở trang Video Source</td></tr>
+        <tr><td>3</td><td>Video không mở được</td><td class="mono">FileVideoSource.open</td><td class="mono">VideoOpenError</td><td>Critical</td><td>ERROR</td><td>Không start; gợi ý codec/định dạng</td></tr>
+        <tr><td>4</td><td>Camera không kết nối</td><td class="mono">CameraVideoSource.open</td><td class="mono">CameraConnectionError</td><td>Warning</td><td>ERROR</td><td>Không start; thử index khác</td></tr>
+        <tr><td>5</td><td>RTSP timeout</td><td class="mono">RTSPVideoSource.open/read</td><td class="mono">RTSPTimeoutError</td><td>Warning</td><td>WARNING→ERROR</td><td>Retry 3 lần, sau đó FINISHED, vẫn lưu báo cáo phần đã xử lý</td></tr>
+        <tr><td>6</td><td>Perspective points sai</td><td class="mono">geometry.validate_quadrilateral</td><td class="mono">PerspectiveError</td><td>Warning</td><td>ERROR</td><td>Không start; hướng dẫn chạy calibrate</td></tr>
+        <tr><td>7</td><td>Configuration sai</td><td class="mono">AppConfig.validate</td><td class="mono">ConfigError</td><td>Warning</td><td>WARNING</td><td>Giữ config cũ, tô đỏ trường sai; file YAML hỏng khi khởi động → default</td></tr>
+        <tr><td>8</td><td>Lỗi inference</td><td class="mono">VehicleDetector.detect</td><td class="mono">InferenceError</td><td>Critical (sau 10 lần liên tiếp)</td><td>WARNING</td><td>Bỏ qua frame; &gt;10 lần liên tiếp → dừng phiên</td></tr>
+        <tr><td>9</td><td>Lỗi ghi video</td><td class="mono">VideoWriter.open/write</td><td class="mono">VideoWriterError</td><td>Warning</td><td>ERROR</td><td>Tiếp tục xử lý, không lưu video</td></tr>
+      </table></div>
+      <h4>Xem trước QMessageBox</h4>
+      <div class="err-demo">
+        <div>
+          <select id="errSel"></select>
+          <p class="small muted" style="margin-top:10px">Chọn một tình huống để xem hộp thoại mà người dùng sẽ thấy.</p>
+        </div>
+        <div class="err-stage" id="errStage"></div>
+      </div>
+    </section>
+
+    <!-- ===================== 16 ===================== -->
+    <section class="sec" id="s16">
+      <div class="sec-head"><span class="sec-no">16</span><h2>Logging &amp; Output</h2></div>
+      <div class="grid g2">
+        <div class="card"><h4>Logging — <code>app/utils/logger.py</code></h4>
+          <ul class="small"><li>Python <code>logging</code>; <code>setup_logging(log_file: Path, level: str)</code> gọi 1 lần trong <code>main.py</code>.</li><li><code>RotatingFileHandler</code>: <code>logs/app.log</code>, 5 MB × 3 bản, UTF-8 + console handler.</li><li>Mỗi module: <code>logger = logging.getLogger(__name__)</code>.</li><li>Level: INFO (vòng đời phiên), WARNING (vi phạm, frame lỗi), ERROR (exception).</li></ul>
+        </div>
+        <div class="card"><h4>Output — sau mỗi phiên</h4>
+          <div class="table-wrap" style="margin:0"><table>
+            <tr><td class="mono">data/output/videos/</td><td class="mono">traffic_output_YYYYMMDD_HHMMSS.mp4</td></tr>
+            <tr><td class="mono">data/output/reports/</td><td class="mono">traffic_report_YYYYMMDD_HHMMSS.json</td></tr>
+            <tr><td class="mono">data/output/reports/</td><td class="mono">traffic_report_YYYYMMDD_HHMMSS.csv</td></tr>
+          </table></div>
+          <p class="small muted" style="margin:8px 0 0">Cùng một timestamp <code>session_id</code> cho cả 3 file. Thư mục được tạo tự động (<code>file_utils.ensure_dir</code>).</p>
+        </div>
+      </div>
+      <div class="code-title">logs/app.log — định dạng</div>
+<pre class="code">%(asctime)s | %(levelname)-8s | %(name)s | %(message)s
+
+2026-09-28 12:30:55 | INFO     | app.core.traffic_monitor | Session 20260928_123055 started: source=data/input/highway.mp4 1920x1080@30.0
+2026-09-28 12:30:56 | INFO     | app.core.detector        | Model loaded: models/yolov8n.pt (classes: car, motorcycle, bus, truck)
+2026-09-28 12:31:02 | WARNING  | app.core.alert_manager   | SPEED_VIOLATION tracker_id=21 car 92.4 km/h &gt; 80
+2026-09-28 12:34:00 | INFO     | app.reports.json_exporter| Report saved: data/output/reports/traffic_report_20260928_123055.json</pre>
+    </section>
+
+    <!-- ===================== 17 ===================== -->
+    <section class="sec" id="s17">
+      <div class="sec-head"><span class="sec-no">17</span><h2>Kiểm thử</h2></div>
+      <p class="sec-intro">Unit test với <code>pytest</code>. Không chạy YOLO thật: model được thay bằng <code>unittest.mock.MagicMock</code>; detections được dựng thủ công bằng <code>sv.Detections(xyxy=..., confidence=..., class_id=..., tracker_id=...)</code>. Chạy: <code>python -m pytest -q</code>.</p>
+      <div class="table-wrap"><table>
+        <tr><th>File</th><th>Đối tượng</th><th>Test case bắt buộc</th></tr>
+        <tr><td class="mono">test_detector.py</td><td>VehicleDetector</td><td>Model path không tồn tại → <code>ModelLoadError</code> · lọc bỏ lớp không phải xe · lọc theo confidence (0.29 bị loại, 0.30 giữ) · detections rỗng · <code>get_vehicle_classes</code> đọc từ <code>model.names</code> giả.</td></tr>
+        <tr><td class="mono">test_tracker.py</td><td>VehicleTracker</td><td>Sau update mọi detection có <code>tracker_id</code> · cùng box qua 2 frame giữ nguyên ID · <code>reset</code> xoá ID · smooth giữ số phần tử · input rỗng.</td></tr>
+        <tr><td class="mono">test_counter.py</td><td>TrafficCounter</td><td>Đi xuống qua line → IN = 1 · đi lên → OUT = 1 · dao động quanh line không đếm trùng · đếm theo lớp · <code>reset</code>.</td></tr>
+        <tr><td class="mono">test_speed.py</td><td>SpeedEstimator</td><td>Frame đầu trả <code>None</code> · chưa đủ <code>min_track_seconds</code> trả <code>None</code> · di chuyển đều 20 m/s → 72 ± 1 km/h · <code>get_speed_violations</code> · 3 điểm / tứ giác lõm → <code>PerspectiveError</code>.</td></tr>
+        <tr><td class="mono">test_report.py</td><td>ReportGenerator</td><td>Đủ key theo schema · <code>save_json</code> đọc lại được · <code>save_csv</code> đúng header và số dòng · tên file đúng pattern timestamp (dùng <code>tmp_path</code>).</td></tr>
+        <tr><td class="mono">test_config.py</td><td>AppConfig</td><td>Giá trị mặc định đúng yêu cầu · save → load roundtrip · confidence ngoài [0.05, 0.95], speed ≤ 0, line ngoài (0,1) → <code>ConfigError</code> · file YAML thiếu trường dùng default.</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 18 ===================== -->
+    <section class="sec" id="s18">
+      <div class="sec-head"><span class="sec-no">18</span><h2>Chuẩn code &amp; ràng buộc</h2></div>
+      <h3>Bắt buộc</h3>
+      <div class="rule-list do">
+        <div>PEP8, type hints đầy đủ, docstring cho module/class/public method</div>
+        <div>Tên biến, tên class rõ nghĩa; mỗi class một nhóm trách nhiệm</div>
+        <div>Dùng <code>pathlib</code>, đường dẫn tương đối gốc dự án</div>
+        <div>Có logging và exception handling ở mọi ranh giới I/O</div>
+        <div>Config qua <code>AppConfig</code>, truyền bằng constructor</div>
+        <div>Mọi nút GUI nối với logic thật; lỗi báo rõ ràng</div>
+      </div>
+      <h3>Cấm</h3>
+      <div class="rule-list">
+        <div>Viết toàn bộ hệ thống trong một file</div>
+        <div>Logic Computer Vision trong GUI hoặc <code>main.py</code></div>
+        <div>Tạo demo giả, fake dữ liệu, hard-code số lượng xe</div>
+        <div>Nút không có logic phía sau</div>
+        <div><code>cv2.imshow</code> khi chạy GUI; inference trong GUI thread</div>
+        <div>Global state tuỳ tiện; hard-code đường dẫn Windows; code lặp; function quá dài</div>
+        <div>Viết “...rest of code” hoặc placeholder cho phần bắt buộc</div>
+        <div>Bỏ qua file quan trọng trong cấu trúc thư mục</div>
+      </div>
+      <div class="note"><b>Quy cách bàn giao code</b>Với mỗi file: ghi rõ <code>FILE PATH</code> trước, sau đó là toàn bộ nội dung file.</div>
+    </section>
+
+    <!-- ===================== 19 ===================== -->
+    <section class="sec" id="s19">
+      <div class="sec-head"><span class="sec-no">19</span><h2>Kế hoạch triển khai</h2></div>
+      <p class="sec-intro">Bước 0: tạo đủ cấu trúc thư mục. Sau đó 13 phase tuần tự; <b>sau mỗi phase phải kiểm tra import và lỗi cú pháp</b> trước khi sang phase tiếp theo.</p>
+      <div class="phases" id="phases"></div>
+      <div class="note ok"><b>Kiểm tra cuối (end-to-end)</b><code>python main.py</code> → chọn video mẫu → START → chạy hết video → xác nhận 3 file output và toàn bộ checklist ở mục 20.</div>
+    </section>
+
+    <!-- ===================== 20 ===================== -->
+    <section class="sec" id="s20">
+      <div class="sec-head"><span class="sec-no">20</span><h2>Tiêu chí nghiệm thu</h2></div>
+      <p class="sec-intro">Chạy <code>python main.py</code>; ứng dụng phải đạt toàn bộ 15 tiêu chí. Đánh dấu khi kiểm tra (được lưu trong trình duyệt của bạn).</p>
+      <div style="display:flex;gap:12px;align-items:center;margin:10px 0"><div class="progress" style="flex:1"><i id="progBar"></i></div><span class="mono small" id="progTxt">0/15</span><button class="theme-btn" style="margin:0" id="ckReset" type="button">Bỏ chọn tất cả</button></div>
+      <ul class="checklist" id="checklist"></ul>
+    </section>
+
+    <!-- ===================== 21 ===================== -->
+    <section class="sec" id="s21">
+      <div class="sec-head"><span class="sec-no">21</span><h2>Phụ lục</h2></div>
+      <h3>A. Ghi chú chuẩn hoá so với yêu cầu gốc</h3>
+      <div class="table-wrap"><table>
+        <tr><th>#</th><th>Yêu cầu gốc</th><th>Chuẩn hoá</th><th>Lý do</th></tr>
+        <tr><td>1</td><td><code>**init**.py</code>, nhánh <code>assets/</code> lệch thụt lề</td><td><code>__init__.py</code>, cây thư mục sửa lại</td><td>Lỗi hiển thị Markdown.</td></tr>
+        <tr><td>2</td><td>Không có file cho trang Video Source, Event Logs, worker</td><td>Thêm <code>source_panel.py</code>, <code>log_panel.py</code>, <code>processing_worker.py</code></td><td>Mục 11 yêu cầu 5 trang, mục 22 yêu cầu worker; tách file theo trách nhiệm.</td></tr>
+        <tr><td>3</td><td>Lỗi được liệt kê nhưng không có nơi định nghĩa</td><td>Thêm <code>app/utils/exceptions.py</code></td><td>Mọi lớp dùng chung, không phụ thuộc vòng.</td></tr>
+        <tr><td>4</td><td><code>process_frame</code> trả về <code>annotated_frame</code></td><td>Trả về <code>FrameResult</code> chứa <code>annotated_frame</code> + statistics + events</td><td>Worker cần số liệu để phát <code>statistics_updated</code>, <code>event_created</code>.</td></tr>
+        <tr><td>5</td><td>Chỉ định nghĩa <code>SPEED_VIOLATION</code></td><td>Thêm <code>VEHICLE_IN</code>, <code>VEHICLE_OUT</code></td><td>CSV “chứa danh sách event” và event history cần ghi cả lượt đếm.</td></tr>
+        <tr><td>6</td><td>AppConfig 10 trường</td><td>Thêm <code>source_type</code>, <code>source_uri</code>, <code>output_dir</code>, <code>min_track_seconds</code></td><td>Settings page yêu cầu chọn video &amp; output dir; mục 7 yêu cầu thời gian tối thiểu.</td></tr>
+        <tr><td>7</td><td>“Total Vehicles” chưa định nghĩa</td><td><code>total_in + total_out</code></td><td>Tránh đếm xe chưa qua line.</td></tr>
+        <tr><td>8</td><td>Chưa nói time base cho tốc độ</td><td><code>frame_index / fps</code> (file), <code>monotonic()</code> (live)</td><td>Tốc độ không phụ thuộc tốc độ máy.</td></tr>
+        <tr><td>9</td><td><code>show_preview</code> chưa rõ nghĩa</td><td>Bật/tắt phát <code>frame_ready</code> lên GUI</td><td>Mục 13 cấm <code>cv2.imshow</code> khi chạy GUI.</td></tr>
+        <tr><td>10</td><td>Có <code>.env.example</code> nhưng không có thư viện</td><td>Thêm <code>python-dotenv</code>, <code>pytest</code></td><td>Giải thích theo mục 25.</td></tr>
+        <tr><td>11</td><td>Vehicle classes theo tên</td><td>Tra id từ <code>model.names</code></td><td>Đổi sang model khác vẫn đúng lớp.</td></tr>
+      </table></div>
+
+      <h3>B. Dàn ý README.md của dự án</h3>
+      <div class="table-wrap"><table>
+        <tr><th>#</th><th>Mục</th><th>Nội dung tối thiểu</th></tr>
+        <tr><td>1</td><td>Giới thiệu</td><td>Mục tiêu, ảnh chụp màn hình dashboard.</td></tr>
+        <tr><td>2</td><td>Features</td><td>Danh sách FR-01…FR-15.</td></tr>
+        <tr><td>3</td><td>Architecture</td><td>Sơ đồ lớp, pipeline, threading (mục 5, 7, 8).</td></tr>
+        <tr><td>4</td><td>Folder structure</td><td>Cây thư mục mục 6.</td></tr>
+        <tr><td>5</td><td>Installation</td><td><code>python -m venv .venv</code> → <code>.venv\Scripts\activate</code> → <code>pip install -r requirements.txt</code>.</td></tr>
+        <tr><td>6</td><td>Environment setup</td><td>Sao chép <code>.env.example</code> → <code>.env</code>; GPU/CUDA tuỳ chọn.</td></tr>
+        <tr><td>7</td><td>Download model</td><td><code>python scripts/download_model.py</code>.</td></tr>
+        <tr><td>8</td><td>Run application</td><td><code>python main.py</code>.</td></tr>
+        <tr><td>9</td><td>Configuration</td><td>Bảng AppConfig, file <code>config.yaml</code>.</td></tr>
+        <tr><td>10</td><td>Video input</td><td>Định dạng hỗ trợ, đặt file vào <code>data/input</code>.</td></tr>
+        <tr><td>11</td><td>RTSP input</td><td>URL mẫu, timeout, reconnect, <code>scripts/test_camera.py</code>.</td></tr>
+        <tr><td>12</td><td>Speed calibration</td><td>Cách đo road width/length, chạy <code>calibrate_perspective.py</code>.</td></tr>
+        <tr><td>13</td><td>Output</td><td>Đường dẫn và định dạng 3 file.</td></tr>
+        <tr><td>14</td><td>Troubleshooting</td><td>Bảng lỗi mục 15.</td></tr>
+        <tr><td>15</td><td>Testing</td><td><code>python -m pytest -q</code>.</td></tr>
+        <tr><td>16</td><td>Future improvements</td><td>Nhiều line/zone, ANPR, lưu DB, multi-camera, export PDF.</td></tr>
+      </table></div>
+    </section>
+
+    <!-- ===================== 22 ===================== -->
+    <section class="sec" id="s22">
+      <div class="sec-head"><span class="sec-no">22</span><h2>Kết quả triển khai &amp; kiểm thử</h2></div>
+      <p class="sec-intro">Mã nguồn: <code>traffic_monitor/</code>. Môi trường kiểm thử: Windows 11, Python 3.11, RTX 3050 Laptop 4 GB (CUDA 12.4), torch 2.5.1, ultralytics 8.4, supervision 0.27, PySide6 6.11. Video mẫu: <code>vehicles.mp4</code> 3840×2160, 25 fps, 538 frame.</p>
+      <div class="grid g4">
+        <div class="card"><div class="k">Unit test</div><div class="v">60 / 60 pass</div><p class="small muted" style="margin:6px 0 0"><code>python -m pytest</code>, YOLO được mock</p></div>
+        <div class="card"><div class="k">GUI end-to-end</div><div class="v">34 / 34 pass</div><p class="small muted" style="margin:6px 0 0"><code>scripts/smoke_test_gui.py</code>, pipeline thật</p></div>
+        <div class="card"><div class="k">Inference</div><div class="v">YOLOv8n · cuda:0 · FP16</div><p class="small muted" style="margin:6px 0 0">~28 FPS riêng detect trên frame 4K</p></div>
+        <div class="card"><div class="k">Cả phiên (4K)</div><div class="v">~18 FPS / ~12.6 FPS</div><p class="small muted" style="margin:6px 0 0">không ghi video / có ghi MP4 4K</p></div>
+      </div>
+      <h3>Tối ưu hiệu năng đã áp dụng</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Vấn đề đo được</th><th>Giải pháp</th><th>Kết quả</th></tr>
+        <tr><td>Letterbox frame 4K trong predictor chậm</td><td>Thu nhỏ frame còn tối đa 1280 px trước inference, scale box về toạ độ gốc</td><td>13–17 → 28 FPS detect</td></tr>
+        <tr><td>Giải mã 4K ~23 ms/frame chạy tuần tự</td><td><code>VideoReader</code> giải mã trong thread riêng, prefetch 4 frame</td><td>10 → 18 FPS cả pipeline</td></tr>
+        <tr><td>Mã hoá MP4 4K ~52 ms/frame</td><td><code>VideoWriter</code> mã hoá trong thread riêng (queue giới hạn 8)</td><td>~8 → 12.6 FPS khi lưu video</td></tr>
+        <tr><td>Frame preview 4K gửi sang GUI</td><td>Thu nhỏ còn 1280 px; worker chỉ gửi frame mới khi GUI đã vẽ xong frame trước (back-pressure)</td><td>GUI không bị nghẽn</td></tr>
+      </table></div>
+      <h3>Luồng nghiệp vụ đã kiểm chứng</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Luồng</th><th>Kết quả</th></tr>
+        <tr><td>START → LOADING → RUNNING → hết video → FINISHED</td><td>538/538 frame; ghi đủ MP4 + JSON + CSV + snapshot; số liệu Dashboard = báo cáo = Event Logs</td></tr>
+        <tr><td>PAUSE / RESUME</td><td>Khi pause không xử lý thêm frame; resume chạy tiếp</td></tr>
+        <tr><td>STOP giữa chừng</td><td>status <code>stopped</code>, vẫn lưu output phần đã xử lý; START lần sau là phiên mới, ID bắt đầu lại</td></tr>
+        <tr><td>Configuration: SAVE / RESET / validate</td><td>Ghi <code>config.yaml</code>, cập nhật UI; perspective sai hoặc model không tồn tại bị từ chối, trường sai tô đỏ</td></tr>
+        <tr><td>Video Source: TEST / APPLY (file, webcam, RTSP)</td><td>Probe chạy trong thread nền; RTSP sai định dạng bị từ chối; webcam thật 640×480 chạy được</td></tr>
+        <tr><td>Lỗi: thiếu model, thiếu video, camera không kết nối, RTSP timeout</td><td>QMessageBox đúng loại, trạng thái ERROR, app không crash và START lại được</td></tr>
+        <tr><td>Đóng cửa sổ khi đang xử lý</td><td>Hỏi xác nhận, dừng worker an toàn (~0.3 s), vẫn lưu output</td></tr>
+      </table></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+};
+const pad = n => String(n).padStart(2, '0');
+const hhmmss = d => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+const stamp = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+const isoLocal = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${hhmmss(d)}`;
+const rand = (a, b) => a + Math.random() * (b - a);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------------- Theme ---------------- */
+const themeBtn = $('#themeBtn');
+const themes = ['auto', 'light', 'dark'];
+const themeLabel = { auto: 'Giao diện: tự động', light: 'Giao diện: sáng', dark: 'Giao diện: tối' };
+function applyTheme(t) {
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  themeBtn.textContent = themeLabel[t];
+}
+let theme = store.get('tm-theme') || 'auto';
+if (!themes.includes(theme)) theme = 'auto';
+applyTheme(theme);
+themeBtn.addEventListener('click', () => {
+  theme = themes[(themes.indexOf(theme) + 1) % themes.length];
+  store.set('tm-theme', theme); applyTheme(theme);
+});
+
+/* ---------------- TOC ---------------- */
+$('#tocToggle').addEventListener('click', () => $('#toc').classList.toggle('open'));
+const tocLinks = $$('#toc a');
+const spy = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id));
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+$$('section.sec').forEach(s => spy.observe(s));
+
+/* ---------------- Phases ---------------- */
+const PHASES = [
+  ['Configuration + Utils', ['config/settings.py, default_config.py', 'utils/logger, file_utils, time_utils, constants, exceptions'], 'pytest tests/test_config.py'],
+  ['Video Source', ['video_source.py (File/Camera/RTSP + factory)', 'video_reader.py, video_writer.py'], 'python scripts/test_camera.py'],
+  ['YOLO Detector', ['core/detector.py', 'scripts/download_model.py'], 'pytest tests/test_detector.py'],
+  ['ByteTrack', ['core/tracker.py (ByteTrack + Smoother)'], 'pytest tests/test_tracker.py'],
+  ['Traffic Counter', ['core/counter.py, core/zone_manager.py'], 'pytest tests/test_counter.py'],
+  ['Speed Estimator', ['vision/transformer.py, geometry.py, coordinates.py', 'core/speed_estimator.py'], 'pytest tests/test_speed.py'],
+  ['Alert Manager', ['core/alert_manager.py', 'TrafficEvent dataclass'], 'python -c "import app.core.alert_manager"'],
+  ['Frame Processor', ['video/frame_processor.py, vision/annotations.py', 'core/pipeline.py, core/traffic_monitor.py'], 'chạy thử 1 video không GUI'],
+  ['Report Generator', ['reports/report_generator.py', 'json_exporter.py, csv_exporter.py'], 'pytest tests/test_report.py'],
+  ['PySide6 GUI', ['main_window + 5 trang + widgets', 'assets/styles/app.qss'], 'python main.py (mở GUI)'],
+  ['Threading', ['gui/processing_worker.py', 'nối 6 signal, pause/stop an toàn'], 'GUI không đơ khi xử lý'],
+  ['Testing', ['hoàn thiện 6 file test, mock YOLO'], 'python -m pytest -q'],
+  ['README', ['16 mục theo Phụ lục B'], 'rà soát lệnh cài đặt trên máy sạch']
+];
+$('#phases').innerHTML = `<div class="phase"><span class="p">PHASE 0</span><b>Project structure</b><ul><li>Tạo toàn bộ thư mục &amp; file rỗng theo mục 6</li></ul><div class="verify">✓ python -m compileall app</div></div>` +
+  PHASES.map((p, i) => `<div class="phase"><span class="p">PHASE ${i + 1}</span><b>${esc(p[0])}</b><ul>${p[1].map(x => `<li>${esc(x)}</li>`).join('')}</ul><div class="verify">✓ ${esc(p[2])}</div></div>`).join('');
+
+/* ---------------- Checklist ---------------- */
+const CHECKS = ['Mở GUI', 'Cho chọn video', 'Load model', 'Start processing', 'Hiển thị video realtime', 'Hiển thị bounding boxes', 'Hiển thị tracker IDs', 'Đếm IN / OUT', 'Hiển thị speed', 'Cảnh báo speed violation', 'Cập nhật dashboard', 'Ghi event log', 'Xuất video', 'Xuất JSON', 'Xuất CSV'];
+let checked = [];
+try { checked = JSON.parse(store.get('tm-checks') || '[]'); } catch (e) { checked = []; }
+if (!Array.isArray(checked)) checked = [];
+const cl = $('#checklist');
+cl.innerHTML = CHECKS.map((c, i) => `<li><label><input type="checkbox" data-i="${i}" ${checked.includes(i) ? 'checked' : ''}><span class="num">${pad(i + 1)}</span><span>${esc(c)}</span></label></li>`).join('');
+function updateProg() {
+  const boxes = $$('input', cl);
+  const done = boxes.filter(b => b.checked).map(b => +b.dataset.i);
+  $('#progBar').style.width = (done.length / CHECKS.length * 100) + '%';
+  $('#progTxt').textContent = `${done.length}/${CHECKS.length}`;
+  store.set('tm-checks', JSON.stringify(done));
+}
+cl.addEventListener('change', updateProg);
+$('#ckReset').addEventListener('click', () => { $$('input', cl).forEach(b => b.checked = false); updateProg(); });
+updateProg();
+
+/* ---------------- QMessageBox ---------------- */
+const ERRORS = [
+  { k: 'Model không tồn tại', icon: 'critical', title: 'Không load được model', msg: 'Không tìm thấy file model: models/yolov8n.pt', det: 'Chạy "python scripts/download_model.py" hoặc chọn model khác trong Configuration.' },
+  { k: 'Video không tồn tại', icon: 'critical', title: 'Video không tồn tại', msg: 'Không tìm thấy file: data/input/highway.mp4', det: 'Kiểm tra lại đường dẫn trong trang Video Source.' },
+  { k: 'Video không mở được', icon: 'critical', title: 'Không mở được video', msg: 'OpenCV không đọc được file data/input/clip.mkv.', det: 'File có thể hỏng hoặc dùng codec không được hỗ trợ. Thử chuyển sang MP4 (H.264).' },
+  { k: 'Camera không kết nối', icon: 'warning', title: 'Camera không kết nối', msg: 'Không mở được camera index 0 (CAP_DSHOW).', det: 'Kiểm tra camera đã cắm, không bị ứng dụng khác chiếm, hoặc thử index khác.' },
+  { k: 'RTSP timeout', icon: 'warning', title: 'RTSP timeout', msg: 'Mất kết nối rtsp://192.168.1.10:554/stream1 sau 3 lần thử lại.', det: 'Phiên đã dừng. Báo cáo phần đã xử lý được lưu trong data/output/reports/.' },
+  { k: 'Invalid perspective points', icon: 'warning', title: 'Perspective không hợp lệ', msg: 'perspective_source phải gồm 4 điểm tạo tứ giác lồi.', det: 'Nhận được 3 điểm. Chạy "python scripts/calibrate_perspective.py" để chọn lại.' },
+  { k: 'Invalid configuration', icon: 'warning', title: 'Cấu hình không hợp lệ', msg: 'confidence_threshold = 1.40 nằm ngoài miền [0.05, 0.95].', det: 'Cấu hình cũ được giữ nguyên. Trường lỗi được tô đỏ.' },
+  { k: 'Model inference error', icon: 'critical', title: 'Lỗi inference', msg: 'Inference thất bại 10 frame liên tiếp. Phiên xử lý đã dừng.', det: 'RuntimeError: CUDA out of memory. Thử TM_DEVICE=cpu hoặc model nhỏ hơn.' },
+  { k: 'Video writer error', icon: 'warning', title: 'Không ghi được video', msg: 'Không tạo được file traffic_output_20260928_123055.mp4.', det: 'Tiếp tục xử lý nhưng không lưu video. Kiểm tra quyền ghi thư mục output.' }
+];
+const iconChar = { critical: '✕', warning: '!', information: 'i' };
+function qmsgHTML(e, buttons) {
+  return `<div class="qmsg" role="alertdialog"><div class="qmsg-t">Traffic Monitor — ${esc(e.title)}<span>✕</span></div>
+    <div class="qmsg-b"><div class="qmsg-ic ${e.icon}">${iconChar[e.icon]}</div><div><b>${esc(e.title)}</b>${esc(e.msg)}${e.det ? `<div class="det">${esc(e.det)}</div>` : ''}</div></div>
+    <div class="qmsg-f">${(buttons || ['OK']).map((b, i) => `<button class="qbtn ${i === 0 ? 'primary' : ''}" data-b="${i}">${esc(b)}</button>`).join('')}</div></div>`;
+}
+const errSel = $('#errSel');
+errSel.innerHTML = ERRORS.map((e, i) => `<option value="${i}">${i + 1}. ${esc(e.k)}</option>`).join('');
+const renderErr = () => {
+  const stage = $('#errStage');
+  stage.innerHTML = qmsgHTML(ERRORS[+errSel.value]);
+  stage.querySelector('.qmsg').style.fontFamily = 'var(--sans)';
+};
+errSel.addEventListener('change', renderErr); renderErr();
+
+/* ================= APP DEMO ================= */
+const app = $('#app');
+const dlgLayer = $('#dlgLayer');
+function dialog(e, buttons) {
+  dlgLayer.innerHTML = qmsgHTML(e, buttons);
+  dlgLayer.classList.add('on');
+  dlgLayer.querySelectorAll('button').forEach(b => b.addEventListener('click', () => dlgLayer.classList.remove('on')));
+}
+function toast(msg, warn) {
+  const d = document.createElement('div'); if (warn) d.className = 'w'; d.textContent = msg;
+  $('#toast').appendChild(d); setTimeout(() => d.remove(), 4200);
+}
+
+/* nav */
+$$('.nav-btn', app).forEach(b => b.addEventListener('click', () => {
+  $$('.nav-btn', app).forEach(x => x.classList.toggle('active', x === b));
+  $$('.page', app).forEach(p => p.classList.toggle('active', p.dataset.page === b.dataset.page));
+  if (b.dataset.page === 'logs') { seenViol = sim.stats.viol; renderLogs(true); }
+  if (b.dataset.page === 'reports') renderReports();
+  refreshBadge();
+}));
+
+/* config */
+const DEFAULTS = { model_path: 'models/yolov8n.pt', confidence_threshold: 0.30, speed_limit_kmh: 80, line_y_ratio: 0.55, road_width_m: 25, road_length_m: 250, output_dir: 'data/output', save_output_video: true, save_report: true, show_preview: true, source_type: 'file', source_uri: 'data/samples/highway_01.mp4', min_track_seconds: 0.5 };
+let cfg = { ...DEFAULTS };
+const F = { model: $('#cModel'), conf: $('#cConf'), limit: $('#cLimit'), line: $('#cLine'), rw: $('#cRW'), rl: $('#cRL'), out: $('#cOut'), sv: $('#cSaveVid'), sr: $('#cSaveRep'), pv: $('#cPreview') };
+function fillForm(c) {
+  F.model.value = c.model_path; F.conf.value = c.confidence_threshold; F.limit.value = c.speed_limit_kmh; F.line.value = c.line_y_ratio;
+  F.rw.value = c.road_width_m; F.rl.value = c.road_length_m; F.out.value = c.output_dir; F.sv.checked = c.save_output_video; F.sr.checked = c.save_report; F.pv.checked = c.show_preview;
+  syncFormLabels();
+}
+function readForm() {
+  return { ...cfg, model_path: F.model.value, confidence_threshold: +F.conf.value, speed_limit_kmh: +F.limit.value, line_y_ratio: +F.line.value,
+    road_width_m: +F.rw.value, road_length_m: +F.rl.value, output_dir: F.out.value.trim(), save_output_video: F.sv.checked, save_report: F.sr.checked, show_preview: F.pv.checked };
+}
+function toYaml(c) {
+  return [
+    `model_path: ${c.model_path}`, `confidence_threshold: ${(+c.confidence_threshold).toFixed(2)}`, `speed_limit_kmh: ${c.speed_limit_kmh}`,
+    `line_y_ratio: ${(+c.line_y_ratio).toFixed(2)}`, `road_width_m: ${c.road_width_m}`, `road_length_m: ${c.road_length_m}`,
+    `perspective_source:`, `  - [412, 38]`, `  - [548, 38]`, `  - [998, 540]`, `  - [-38, 540]`,
+    `show_preview: ${c.show_preview}`, `save_output_video: ${c.save_output_video}`, `save_report: ${c.save_report}`,
+    `source_type: ${c.source_type}`, `source_uri: "${c.source_uri}"`, `output_dir: ${c.output_dir}`, `min_track_seconds: ${c.min_track_seconds}`
+  ].join('\n');
+}
+function syncFormLabels() {
+  $('#cConfV').textContent = (+F.conf.value).toFixed(2);
+  $('#cLineV').textContent = (+F.line.value).toFixed(2);
+  $('#yaml').textContent = toYaml(readForm());
+}
+Object.values(F).forEach(el => el.addEventListener('input', syncFormLabels));
+function validate(c) {
+  const errs = [];
+  if (!(c.confidence_threshold >= 0.05 && c.confidence_threshold <= 0.95)) errs.push(['confidence_threshold', 'confidence_threshold phải trong [0.05, 0.95]']);
+  if (!(c.speed_limit_kmh >= 10 && c.speed_limit_kmh <= 250)) errs.push(['speed_limit_kmh', 'speed_limit_kmh phải trong [10, 250]']);
+  if (!(c.line_y_ratio >= 0.1 && c.line_y_ratio <= 0.9)) errs.push(['line_y_ratio', 'line_y_ratio phải trong [0.10, 0.90]']);
+  if (!(c.road_width_m > 0 && c.road_width_m <= 200)) errs.push(['road_width_m', 'road_width_m phải trong (0, 200]']);
+  if (!(c.road_length_m > 0 && c.road_length_m <= 1000)) errs.push(['road_length_m', 'road_length_m phải trong (0, 1000]']);
+  if (!c.output_dir) errs.push(['output_dir', 'output_dir không được để trống']);
+  return errs;
+}
+function applyCfgToUI() {
+  const model = cfg.model_path.split('/').pop();
+  $('#sModel').textContent = model; $('#navModel').textContent = model;
+  $('#sConf').textContent = cfg.confidence_threshold.toFixed(2);
+  $('#sLimit').textContent = cfg.speed_limit_kmh + ' km/h';
+}
+$('#cfgSave').addEventListener('click', () => {
+  const c = readForm();
+  $$('.frow[data-f]', app).forEach(r => r.classList.remove('invalid'));
+  const errs = validate(c);
+  if (errs.length) {
+    errs.forEach(([f]) => { const r = $(`.frow[data-f="${f}"]`, app); if (r) r.classList.add('invalid'); });
+    dialog({ icon: 'warning', title: 'Cấu hình không hợp lệ', msg: errs.map(e => e[1]).join('; ') + '.', det: 'ConfigError — cấu hình cũ được giữ nguyên.' });
+    return;
+  }
+  cfg = c; applyCfgToUI(); layoutDirty = true;
+  toast('SAVE CONFIG — đã ghi config.yaml');
+  $('#stCfg').textContent = 'config.yaml · saved ' + hhmmss(new Date());
+});
+$('#cfgReset').addEventListener('click', () => {
+  cfg = { ...DEFAULTS, source_type: cfg.source_type, source_uri: cfg.source_uri };
+  fillForm(cfg); applyCfgToUI(); layoutDirty = true;
+  $$('.frow[data-f]', app).forEach(r => r.classList.remove('invalid'));
+  toast('RESET DEFAULT — đã khôi phục giá trị mặc định');
+});
+fillForm(cfg); applyCfgToUI();
+
+/* source page */
+let stype = 'file';
+$$('input[name=stype]', app).forEach(r => r.addEventListener('change', () => {
+  stype = r.value; $$('.src-pane', app).forEach(p => p.classList.toggle('on', p.dataset.src === stype));
+}));
+$('#fBrowse').addEventListener('click', () => $('#fInput').click());
+$('#fInput').addEventListener('change', ev => {
+  const file = ev.target.files && ev.target.files[0]; if (!file) return;
+  $('#fPath').value = 'data/input/' + file.name;
+  $('#fMeta').textContent = 'Đang đọc metadata…';
+  const v = document.createElement('video'); v.preload = 'metadata';
+  const url = URL.createObjectURL(file);
+  v.onloadedmetadata = () => {
+    $('#fMeta').textContent = `${v.videoWidth}×${v.videoHeight} · ${v.duration.toFixed(1)} s · ${(file.size / 1048576).toFixed(1)} MB`;
+    URL.revokeObjectURL(url);
+  };
+  v.onerror = () => { $('#fMeta').textContent = 'Trình duyệt không đọc được metadata (app thật sẽ báo VideoOpenError nếu OpenCV cũng không mở được).'; URL.revokeObjectURL(url); };
+  v.src = url;
+});
+$('#srcApply').addEventListener('click', () => {
+  let uri;
+  if (stype === 'file') {
+    uri = $('#fPath').value.trim();
+    if (!uri) { dialog(ERRORS[1]); return; }
+  } else if (stype === 'camera') {
+    const i = parseInt($('#camIdx').value, 10);
+    if (!(i >= 0 && i <= 9)) { dialog({ icon: 'warning', title: 'Cấu hình không hợp lệ', msg: 'Camera index phải trong 0 – 9.' }); return; }
+    uri = 'camera:' + i;
+  } else {
+    uri = $('#rtspUrl').value.trim();
+    if (!/^rtsps?:\/\/[^\s/]+/i.test(uri)) { dialog({ icon: 'warning', title: 'RTSP URL không hợp lệ', msg: 'URL phải có dạng rtsp://host:port/path', det: 'Ví dụ: rtsp://user:pass@192.168.1.10:554/stream1' }); return; }
+  }
+  if (sim.state === 'running' || sim.state === 'paused') { dialog({ icon: 'information', title: 'Đang xử lý', msg: 'Hãy STOP phiên hiện tại trước khi đổi nguồn video.' }); return; }
+  cfg.source_type = stype; cfg.source_uri = uri;
+  const shortName = uri.replace(/^.*[\\/]/, '').replace(/^rtsps?:\/\/(?:[^@]*@)?/i, 'rtsp://');
+  $('#sSource').textContent = shortName; $('#dSrc').textContent = stype === 'rtsp' ? uri.replace(/\/\/[^@]*@/, '//***@') : uri;
+  syncFormLabels();
+  toast(`Nguồn: ${stype.toUpperCase()} · ${shortName}`);
+});
+
+/* ---------------- Simulation ---------------- */
+const TRUE_W = 25, TRUE_L = 250, PA = 3.2;
+const CLASSES = {
+  car: { w: 1.8, len: 4.6, h: 1.5, p: 0.58, v: [48, 112], paints: ['#8a9099', '#c9ccd1', '#4a5058', '#6c4f45', '#3f5566', '#9a9180'] },
+  motorcycle: { w: 0.8, len: 2.0, h: 1.4, p: 0.2, v: [35, 72], paints: ['#5c6168', '#7b3b3b', '#2f3a48'] },
+  bus: { w: 2.6, len: 11.5, h: 3.2, p: 0.08, v: [42, 78], paints: ['#b08a3a', '#6a7d5a', '#d0d3d6'] },
+  truck: { w: 2.5, len: 8.5, h: 3.0, p: 0.14, v: [42, 88], paints: ['#7b8290', '#a4553f', '#586270'] }
+};
+const CLS_KEYS = Object.keys(CLASSES);
+const LANES = [-1, -1, 1, 1]; // -1 = đi ra xa (lên trên), 1 = đi về phía camera (xuống)
+const TRACK_COLORS = ['#5b9bd5', '#6fbf8e', '#d9a441', '#b58ad6', '#4fb3bf', '#d98a5b', '#9fb2cc', '#c2c46a', '#d97fa0'];
+const newStats = () => ({ in: 0, out: 0, viol: 0, cls: { car: { in: 0, out: 0 }, motorcycle: { in: 0, out: 0 }, bus: { in: 0, out: 0 }, truck: { in: 0, out: 0 } } });
+const sim = { state: 'idle', vehicles: [], nextId: 1, t: 0, frame: 0, spawn: [0.5, 1.4, 0.2, 1.0], stats: newStats(), events: [], counted: new Set(), violated: new Set(), max: null, startedAt: null, endedAt: null, session: null, fps: 0, hadSession: false };
+
+const cv = $('#cv'); const ctx = cv.getContext('2d');
+let W = 960, H = 540, layoutDirty = true;
+function resize() {
+  const r = cv.getBoundingClientRect(); if (!r.width) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = r.width; H = r.width * 9 / 16;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+new ResizeObserver(resize).observe(cv);
+
+const geo = () => ({ y0: 0.07 * H, y1: H, lt: 0.43 * W, rt: 0.57 * W, lb: -0.04 * W, rb: 1.04 * W });
+function proj(X, Y, g) {
+  const t = Y / TRUE_L; const s = t / (t + PA * (1 - t));
+  const l = g.lt + s * (g.lb - g.lt), r = g.rt + s * (g.rb - g.rt);
+  return { x: l + (X / TRUE_W) * (r - l), y: g.y0 + s * (g.y1 - g.y0), k: (r - l) / TRUE_W, s };
+}
+// "ViewTransformer": pixel -> mét, dùng kích thước đường theo cấu hình người dùng
+function unproj(x, y, g) {
+  const s = (y - g.y0) / (g.y1 - g.y0); const t = s * PA / (1 + s * (PA - 1));
+  const l = g.lt + s * (g.lb - g.lt), r = g.rt + s * (g.rb - g.rt);
+  return { X: (x - l) / (r - l) * cfg.road_width_m, Y: t * cfg.road_length_m, s };
+}
+function pickClass() { let r = Math.random(); for (const k of CLS_KEYS) { r -= CLASSES[k].p; if (r <= 0) return k; } return 'car'; }
+function spawn(lane) {
+  const cls = pickClass(), c = CLASSES[cls], dir = LANES[lane];
+  const Y = dir > 0 ? c.len + 0.5 : TRUE_L + c.len + 2;
+  for (const v of sim.vehicles) if (v.lane === lane && Math.abs(v.Y - Y) < 28) return false;
+  const laneW = TRUE_W / 4;
+  sim.vehicles.push({ id: null, cls, lane, dir, X: (lane + 0.5) * laneW + rand(-0.35, 0.35), Y, v: rand(c.v[0], c.v[1]) / 3.6,
+    conf: 0.95 - Math.pow(Math.random(), 2) * 0.68, paint: c.paints[Math.floor(Math.random() * c.paints.length)],
+    hist: [], trace: [], speed: null, prevAy: null, det: null, color: '#fff' });
+  return true;
+}
+function addEvent(type, v) {
+  const d = new Date();
+  const e = { timestamp: isoLocal(d), time: hhmmss(d), frame_index: sim.frame, tracker_id: v.id, vehicle_type: v.cls,
+    speed_kmh: v.speed == null ? null : Math.round(v.speed * 10) / 10, speed_limit_kmh: cfg.speed_limit_kmh, event_type: type };
+  sim.events.push(e); if (sim.events.length > 5000) sim.events.shift();
+  eventsDirty = true;
+}
+function step(dt) {
+  sim.t += dt; sim.frame++;
+  for (let l = 0; l < 4; l++) { sim.spawn[l] -= dt; if (sim.spawn[l] <= 0) { spawn(l); sim.spawn[l] = rand(1.4, 3.8); } }
+  // leader following
+  for (const v of sim.vehicles) {
+    let lead = null, gap = Infinity;
+    for (const o of sim.vehicles) {
+      if (o === v || o.lane !== v.lane) continue;
+      const g = v.dir > 0 ? (o.Y - CLASSES[o.cls].len) - v.Y : (v.Y - CLASSES[v.cls].len) - o.Y;
+      if (g > 0 && g < gap) { gap = g; lead = o; }
+    }
+    if (lead && gap < 14) v.v = Math.min(v.v, lead.v);
+    v.Y += v.dir * v.v * dt;
+  }
+  sim.vehicles = sim.vehicles.filter(v => v.dir > 0 ? v.Y - CLASSES[v.cls].len < TRUE_L + 4 : v.Y > 2);
+  detectTrackCount();
+}
+function detectTrackCount() {
+  const g = geo(); const lineY = cfg.line_y_ratio * H;
+  for (const v of sim.vehicles) {
+    const c = CLASSES[v.cls];
+    const near = proj(v.X, v.Y, g), far = proj(v.X, v.Y - c.len, g);
+    const halfW = c.w / 2 * near.k;
+    const x1 = Math.min(near.x - halfW, far.x - c.w / 2 * far.k), x2 = Math.max(near.x + halfW, far.x + c.w / 2 * far.k);
+    const y2 = near.y, y1 = far.y - c.h * far.k;
+    let conf = Math.min(0.99, Math.max(0.01, v.conf + rand(-0.03, 0.03)));
+    if (y2 - y1 < 16) conf *= 0.7;               // vật thể nhỏ ở xa → confidence thấp
+    const onScreen = y2 > g.y0 + 2 && y1 < H;
+    const detected = onScreen && (y2 - y1) >= 7 && conf >= cfg.confidence_threshold;
+    v.det = { x1, y1, x2, y2, conf, detected };
+    if (!detected) continue;
+    if (v.id == null) { v.id = sim.nextId++; v.color = TRACK_COLORS[v.id % TRACK_COLORS.length]; }
+    const ax = (x1 + x2) / 2 + rand(-1, 1), ay = y2 + rand(-1, 1);
+    v.trace.push([ax, ay]); if (v.trace.length > 40) v.trace.shift();
+    // speed: anchor -> mét qua ViewTransformer, cửa sổ 1 s, tối thiểu min_track_seconds
+    const m = unproj(ax, ay, g);
+    if (m.s > 0.14 && m.s < 0.995) {
+      v.hist.push([sim.t, m.X, m.Y]);
+      while (v.hist.length && sim.t - v.hist[0][0] > 1.0) v.hist.shift();
+      if (v.hist.length > 1) {
+        const a = v.hist[0], b = v.hist[v.hist.length - 1], span = b[0] - a[0];
+        if (span >= cfg.min_track_seconds) {
+          const kmh = Math.hypot(b[1] - a[1], b[2] - a[2]) / span * 3.6;
+          v.speed = v.speed == null ? kmh : v.speed * 0.8 + kmh * 0.2;
+          if (!sim.max || v.speed > sim.max.speed_kmh) sim.max = { speed_kmh: Math.round(v.speed * 10) / 10, tracker_id: v.id, vehicle_type: v.cls };
+        }
+      }
+    }
+    // LineZone
+    if (v.prevAy != null && !sim.counted.has(v.id)) {
+      if (v.prevAy < lineY && ay >= lineY) { sim.counted.add(v.id); sim.stats.in++; sim.stats.cls[v.cls].in++; addEvent('VEHICLE_IN', v); }
+      else if (v.prevAy > lineY && ay <= lineY) { sim.counted.add(v.id); sim.stats.out++; sim.stats.cls[v.cls].out++; addEvent('VEHICLE_OUT', v); }
+    }
+    v.prevAy = ay;
+    // AlertManager
+    if (v.speed != null && v.speed > cfg.speed_limit_kmh && !sim.violated.has(v.id)) {
+      sim.violated.add(v.id); sim.stats.viol++; addEvent('SPEED_VIOLATION', v);
+    }
+  }
+}
+
+/* ---------------- Render ---------------- */
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawScene() {
+  const g = geo();
+  ctx.fillStyle = '#121417'; ctx.fillRect(0, 0, W, H);
+  // verge texture
+  ctx.fillStyle = '#16191c'; ctx.fillRect(0, g.y0, W, H - g.y0);
+  ctx.fillStyle = '#0c0d0f'; ctx.fillRect(0, 0, W, g.y0);
+  // road
+  const p = (X, Y) => proj(X, Y, g);
+  const a = p(0, 0), b = p(TRUE_W, 0), c = p(TRUE_W, TRUE_L * 1.12), d = p(0, TRUE_L * 1.12);
+  ctx.fillStyle = '#24282e'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.fill();
+  // edges
+  ctx.strokeStyle = '#8b9097'; ctx.lineWidth = 2;
+  [[0.15, 0], [TRUE_W - 0.15, 0]].forEach(([X]) => { const s1 = p(X, 0), s2 = p(X, TRUE_L * 1.12); ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke(); });
+  // centre double line
+  ctx.strokeStyle = '#a3863f'; ctx.lineWidth = 1.5;
+  [TRUE_W / 2 - 0.2, TRUE_W / 2 + 0.2].forEach(X => { const s1 = p(X, 0), s2 = p(X, TRUE_L * 1.12); ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke(); });
+  // lane dashes
+  ctx.strokeStyle = '#6b7079';
+  for (const X of [TRUE_W / 4, TRUE_W * 3 / 4]) {
+    for (let Y = 0; Y < TRUE_L * 1.12; Y += 12) {
+      const s1 = p(X, Y), s2 = p(X, Y + 5); ctx.lineWidth = Math.max(0.6, 0.18 * s2.k); ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
+    }
+  }
+  // speed zone (perspective_source)
+  const zA = p(0, TRUE_L * 0.34), zB = p(TRUE_W, TRUE_L * 0.34), zC = p(TRUE_W, TRUE_L), zD = p(0, TRUE_L);
+  ctx.setLineDash([6, 5]); ctx.strokeStyle = 'rgba(217,164,65,.45)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(zA.x, zA.y); ctx.lineTo(zB.x, zB.y); ctx.lineTo(zC.x, Math.min(zC.y, H - 1)); ctx.lineTo(zD.x, Math.min(zD.y, H - 1)); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = '10px "IBM Plex Mono", monospace'; ctx.fillStyle = 'rgba(217,164,65,.65)'; ctx.fillText('SPEED ZONE', zB.x + 6, zB.y + 3);
+}
+function drawVehicles() {
+  const vs = sim.vehicles.slice().sort((a, b) => a.Y - b.Y);
+  // bodies
+  for (const v of vs) {
+    const d = v.det; if (!d) continue;
+    const w = d.x2 - d.x1, h = d.y2 - d.y1;
+    ctx.fillStyle = v.paint; roundRect(d.x1 + w * 0.06, d.y1 + h * 0.08, w * 0.88, h * 0.9, Math.min(4, w * 0.12)); ctx.fill();
+    ctx.fillStyle = 'rgba(20,24,30,.75)';
+    if (v.dir > 0) ctx.fillRect(d.x1 + w * 0.16, d.y1 + h * 0.52, w * 0.68, h * 0.18);
+    else ctx.fillRect(d.x1 + w * 0.16, d.y1 + h * 0.22, w * 0.68, h * 0.16);
+    ctx.fillStyle = v.dir > 0 ? 'rgba(255,240,200,.8)' : 'rgba(210,60,60,.85)';
+    const lw = Math.max(1.5, w * 0.12), ly = d.y2 - Math.max(2, h * 0.1);
+    ctx.fillRect(d.x1 + w * 0.12, ly, lw, Math.max(1.5, h * 0.06)); ctx.fillRect(d.x2 - w * 0.12 - lw, ly, lw, Math.max(1.5, h * 0.06));
+  }
+  if (!cfg.show_preview) return;
+  // traces
+  for (const v of vs) {
+    if (!v.det || !v.det.detected || v.trace.length < 2) continue;
+    ctx.strokeStyle = v.color; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.beginPath();
+    v.trace.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // boxes + labels
+  ctx.font = '600 10.5px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+  for (const v of vs) {
+    const d = v.det; if (!d || !d.detected) continue;
+    const viol = sim.violated.has(v.id);
+    const col = viol ? '#e05a5a' : v.color;
+    ctx.strokeStyle = col; ctx.lineWidth = viol ? 2 : 1.5; ctx.strokeRect(d.x1, d.y1, d.x2 - d.x1, d.y2 - d.y1);
+    let label = `#${v.id} ${v.cls} ${d.conf.toFixed(2)}`;
+    if (v.speed != null) label += ` | ${Math.round(v.speed)} km/h`;
+    if (viol) label = '⚠ ' + label;
+    const tw = ctx.measureText(label).width + 8, th = 15;
+    let lx = Math.min(Math.max(0, d.x1), W - tw), ly = d.y1 - th - 1; if (ly < 0) ly = d.y2 + 1;
+    ctx.fillStyle = col; ctx.fillRect(lx, ly, tw, th);
+    ctx.fillStyle = viol ? '#fff' : '#0b0c0e'; ctx.fillText(label, lx + 4, ly + th / 2 + 0.5);
+  }
+  // anchors
+  for (const v of vs) { if (v.det && v.det.detected) { ctx.fillStyle = sim.violated.has(v.id) ? '#e05a5a' : v.color; ctx.beginPath(); ctx.arc((v.det.x1 + v.det.x2) / 2, v.det.y2, 2.2, 0, 7); ctx.fill(); } }
+}
+function drawOverlay() {
+  const lineY = cfg.line_y_ratio * H;
+  // counting line
+  ctx.strokeStyle = '#d9a441'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(W, lineY); ctx.stroke();
+  ctx.font = '600 11px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+  const tag = (txt, x, bg, fg) => { const w = ctx.measureText(txt).width + 12; ctx.fillStyle = bg; ctx.fillRect(x, lineY - 10, w, 20); ctx.fillStyle = fg; ctx.fillText(txt, x + 6, lineY + 0.5); return w; };
+  const w1 = ctx.measureText(`OUT ${sim.stats.out}`).width + 12;
+  tag(`IN ${sim.stats.in}`, W - 12 - w1 - 6 - (ctx.measureText(`IN ${sim.stats.in}`).width + 12), '#4fae7b', '#08110c');
+  tag(`OUT ${sim.stats.out}`, W - 12 - w1, '#5b9bd5', '#08101a');
+  // dashboard overlay
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(10, 10, 178, 92);
+  ctx.font = '600 11px "IBM Plex Mono", monospace'; ctx.textBaseline = 'alphabetic';
+  const rows = [['IN', sim.stats.in, '#7fd3a3'], ['OUT', sim.stats.out, '#9cc3ea'], ['TOTAL', sim.stats.in + sim.stats.out, '#e8c27a'], ['VIOLATIONS', sim.stats.viol, '#f08a8a'], ['FPS', sim.state === 'running' ? sim.fps.toFixed(1) : '—', '#c9ced4']];
+  rows.forEach(([k, val, c], i) => { ctx.fillStyle = '#8b939d'; ctx.fillText(k, 18, 27 + i * 16); ctx.fillStyle = c; ctx.textAlign = 'right'; ctx.fillText(String(val), 180, 27 + i * 16); ctx.textAlign = 'left'; });
+  // source + frame
+  ctx.font = '10.5px "IBM Plex Mono", monospace'; ctx.fillStyle = 'rgba(210,215,220,.75)'; ctx.textAlign = 'right';
+  ctx.fillText(`${$('#sSource').textContent}  ·  frame ${sim.frame}`, W - 12, 20); ctx.textAlign = 'left';
+  if (!cfg.show_preview) { ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(0, H - 26, W, 26); ctx.fillStyle = '#c9ced4'; ctx.fillText('show_preview = false · annotation chỉ ghi vào video output', 12, H - 10); }
+  // state overlay
+  if (sim.state !== 'running') {
+    ctx.fillStyle = sim.state === 'paused' ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#e6e9ec'; ctx.font = '600 15px "IBM Plex Sans", sans-serif';
+    const msg = { idle: 'Nhấn START để bắt đầu xử lý', paused: 'PAUSED', stopped: 'Đã dừng · output đã được ghi — xem trang Reports' }[sim.state];
+    ctx.fillText(msg, W / 2, H / 2); ctx.textAlign = 'left';
+  }
+}
+function render() { drawScene(); drawVehicles(); drawOverlay(); }
+
+/* ---------------- UI updates (statistics_updated @5Hz) ---------------- */
+let eventsDirty = true, seenViol = 0, logCleared = 0;
+function renderStats() {
+  const s = sim.stats;
+  const vals = { total: s.in + s.out, in: s.in, out: s.out, viol: s.viol };
+  CLS_KEYS.forEach(k => vals[k] = s.cls[k].in + s.cls[k].out);
+  $$('.stat .v', app).forEach(el => { el.textContent = vals[el.dataset.k]; });
+  $('#vioCard').classList.toggle('hot', s.viol > 0);
+  $('#sFps').textContent = sim.state === 'running' ? sim.fps.toFixed(1) : '—';
+  $('#sFrame').textContent = sim.frame;
+  $('#sTracks').textContent = sim.vehicles.filter(v => v.det && v.det.detected).length;
+  refreshBadge();
+}
+function refreshBadge() {
+  const b = $('#navBadge'); const n = sim.stats.viol - seenViol;
+  const onLogs = $('.nav-btn[data-page=logs]').classList.contains('active');
+  if (onLogs) seenViol = sim.stats.viol;
+  b.style.display = (!onLogs && n > 0) ? 'inline-block' : 'none'; b.textContent = n;
+}
+function evRow(e) { return `<div class="row"><span class="t">${e.time}</span><span>#${e.tracker_id}</span><span>${e.vehicle_type}${e.speed_kmh != null ? ' · ' + Math.round(e.speed_kmh) + ' km/h' : ''}</span><span class="ev ${e.event_type}">${e.event_type.replace('VEHICLE_', '')}</span></div>`; }
+function renderMini() {
+  const box = $('#miniLog'); const last = sim.events.slice(-40).reverse();
+  box.innerHTML = last.length ? last.map(evRow).join('') : '<div class="empty">Chưa có sự kiện</div>';
+  $('#evCount').textContent = sim.events.length;
+}
+function renderLogs(force) {
+  if (!$('.page[data-page=logs]').classList.contains('active') && !force) return;
+  const f = $('#lgFilter').value, q = $('#lgSearch').value.trim().replace('#', '');
+  const rows = sim.events.slice(logCleared).filter(e => (!f || e.event_type === f) && (!q || String(e.tracker_id) === q)).slice(-500);
+  $('#logBody').innerHTML = rows.length ? rows.map(e => `<tr class="${e.event_type === 'SPEED_VIOLATION' ? 'v' : ''}"><td>${e.time}</td><td>${e.frame_index}</td><td>Vehicle #${e.tracker_id}</td><td>${e.vehicle_type}</td><td>${e.speed_kmh != null ? e.speed_kmh.toFixed(1) + ' km/h' : '—'}</td><td>${e.speed_limit_kmh}</td><td><span class="ev ${e.event_type}">${e.event_type}</span></td></tr>`).join('')
+    : `<tr><td colspan="7" class="empty">Không có event phù hợp</td></tr>`;
+  if ($('#lgAuto').checked) { const w = $('#logWrap'); w.scrollTop = w.scrollHeight; }
+}
+['change', 'input'].forEach(evn => { $('#lgFilter').addEventListener(evn, () => renderLogs()); $('#lgSearch').addEventListener(evn, () => renderLogs()); });
+
+function renderReports() {
+  const s = sim.stats; const tot = s.in + s.out;
+  const items = [['Total vehicles', tot], ['IN', s.in], ['OUT', s.out], ['Car', s.cls.car.in + s.cls.car.out], ['Motorcycle', s.cls.motorcycle.in + s.cls.motorcycle.out], ['Bus', s.cls.bus.in + s.cls.bus.out], ['Truck', s.cls.truck.in + s.cls.truck.out], ['Speed violations', s.viol], ['Maximum speed', sim.max ? `${sim.max.speed_kmh.toFixed(1)} km/h` : '—']];
+  $('#repGrid').innerHTML = items.map(([l, v], i) => `<div class="stat ${i === 7 ? 'vio' + (s.viol ? ' hot' : '') : i === 1 ? 'in' : i === 2 ? 'out' : i === 0 ? 'tot' : ''}"><div class="l">${l}</div><div class="v" style="font-size:19px">${v}</div>${i === 8 && sim.max ? `<div style="font:11px var(--mono);color:var(--a-faint)">#${sim.max.tracker_id} · ${sim.max.vehicle_type}</div>` : ''}</div>`).join('');
+  const mx = Math.max(1, ...CLS_KEYS.map(k => s.cls[k].in + s.cls[k].out));
+  $('#bars').innerHTML = CLS_KEYS.map(k => { const c = s.cls[k]; return `<div class="bar"><span>${k}</span><div class="track"><i style="width:${c.in / mx * 100}%;background:var(--a-green)"></i><i style="width:${c.out / mx * 100}%;background:var(--a-blue)"></i></div><span class="num">${c.in} / ${c.out}</span></div>`; }).join('');
+  $('#repSession').textContent = sim.session ? `SESSION ${sim.session} · ${sim.state.toUpperCase()} · ${sim.frame} frames` : 'Chưa có phiên xử lý';
+}
+setInterval(() => {
+  renderStats();
+  if (eventsDirty) { renderMini(); renderLogs(); eventsDirty = false; }
+  if ($('.page[data-page=reports]').classList.contains('active')) renderReports();
+}, 200);
+
+/* ---------------- Controls ---------------- */
+const btnStart = $('#btnStart'), btnPause = $('#btnPause'), btnStop = $('#btnStop');
+function setState(st) {
+  sim.state = st;
+  const pill = $('#statusPill'); pill.className = 'pill ' + (st === 'idle' ? '' : st); pill.textContent = st.toUpperCase();
+  btnStart.disabled = st === 'running' || st === 'paused';
+  btnPause.disabled = !(st === 'running' || st === 'paused');
+  btnStop.disabled = !(st === 'running' || st === 'paused');
+  btnPause.textContent = st === 'paused' ? '▶ RESUME' : '❚❚ PAUSE';
+  $('#sStatus').textContent = { idle: 'Idle', running: 'Processing', paused: 'Paused', stopped: 'Finished' }[st];
+  $('#stDot').className = 'dot ' + (st === 'running' ? 'on' : st === 'paused' ? 'pa' : '');
+  $('#stText').textContent = { idle: 'Ready', running: 'Processing…', paused: 'Paused', stopped: 'Finished' }[st];
+  $('#cfgSave').disabled = false;
+}
+btnStart.addEventListener('click', () => {
+  const d = new Date();
+  Object.assign(sim, { vehicles: [], nextId: 1, t: 0, frame: 0, stats: newStats(), events: [], counted: new Set(), violated: new Set(), max: null, startedAt: d, endedAt: null, session: stamp(d), hadSession: true, spawn: [0.3, 1.2, 0.1, 0.8] });
+  seenViol = 0; logCleared = 0; eventsDirty = true;
+  setState('running');
+  $('#stSess').textContent = 'session ' + sim.session;
+  toast('processing_started — model ' + cfg.model_path.split('/').pop() + ' · ' + $('#sSource').textContent);
+});
+btnPause.addEventListener('click', () => setState(sim.state === 'paused' ? 'running' : 'paused'));
+btnStop.addEventListener('click', () => {
+  sim.endedAt = new Date(); setState('stopped'); sim.vehicles = [];
+  const out = cfg.output_dir.replace(/\/$/, '');
+  if (cfg.save_output_video) toast(`processing_finished — video: ${out}/videos/traffic_output_${sim.session}.mp4`);
+  if (cfg.save_report) toast(`Báo cáo: ${out}/reports/traffic_report_${sim.session}.json / .csv`);
+});
+
+/* ---------------- Export ---------------- */
+function buildReport() {
+  const s = sim.stats; const end = sim.endedAt || new Date();
+  const counts = {}; CLS_KEYS.forEach(k => counts[k] = { in: s.cls[k].in, out: s.cls[k].out, total: s.cls[k].in + s.cls[k].out });
+  return {
+    _notice: 'MOCKUP DATA — sinh bởi mô phỏng trong trình duyệt của tài liệu đặc tả, không phải output YOLO.',
+    session: { session_id: sim.session, started_at: isoLocal(sim.startedAt), ended_at: isoLocal(end), duration_s: Math.round((end - sim.startedAt) / 100) / 10, frames_processed: sim.frame, app_version: '1.0.0' },
+    source: { type: cfg.source_type, uri: cfg.source_uri, resolution: [1920, 1080], fps: 30.0 },
+    config: { model_path: cfg.model_path, confidence_threshold: cfg.confidence_threshold, speed_limit_kmh: cfg.speed_limit_kmh, line_y_ratio: cfg.line_y_ratio, road_width_m: cfg.road_width_m, road_length_m: cfg.road_length_m },
+    total_in: s.in, total_out: s.out, total_vehicles: s.in + s.out,
+    vehicle_counts: counts,
+    speed_violations: { count: s.viol, items: sim.events.filter(e => e.event_type === 'SPEED_VIOLATION').map(({ time, ...e }) => e) },
+    maximum_speed: sim.max,
+    events: sim.events.map(({ time, ...e }) => e),
+    outputs: { video: cfg.save_output_video ? `${cfg.output_dir}/videos/traffic_output_${sim.session}.mp4` : null }
+  };
+}
+function download(name, text, type) {
+  const blob = new Blob([text], { type }); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function guardExport() {
+  if (!sim.hadSession) { dialog({ icon: 'information', title: 'Chưa có dữ liệu', msg: 'Chưa có phiên xử lý nào. Hãy START ở Dashboard trước khi xuất báo cáo.' }); return false; }
+  return true;
+}
+$('#expJson').addEventListener('click', () => {
+  if (!guardExport()) return;
+  const name = `traffic_report_${sim.session}.json`;
+  download(name, JSON.stringify(buildReport(), null, 2), 'application/json'); toast('Export JSON — ' + name);
+});
+$('#expCsv').addEventListener('click', () => {
+  if (!guardExport()) return;
+  const head = 'timestamp,frame_index,tracker_id,vehicle_type,speed_kmh,speed_limit_kmh,event_type';
+  const rows = sim.events.map(e => [e.timestamp, e.frame_index, e.tracker_id, e.vehicle_type, e.speed_kmh ?? '', e.speed_limit_kmh, e.event_type].join(','));
+  const name = `traffic_report_${sim.session}.csv`;
+  download(name, '﻿' + [head, ...rows].join('\r\n'), 'text/csv'); toast('Export CSV — ' + name);
+});
+$('#openFolder').addEventListener('click', () => toast(`App thật gọi QDesktopServices.openUrl(QUrl.fromLocalFile("${cfg.output_dir}")) — trình duyệt không mở được thư mục trên máy.`, true));
+
+/* ---------------- Loop ---------------- */
+let last = performance.now();
+function loop(now) {
+  let dt = (now - last) / 1000; last = now; if (dt > 0.1) dt = 0.1;
+  if (sim.state === 'running') { sim.fps = sim.fps ? sim.fps * 0.93 + (1 / Math.max(dt, 1e-3)) * 0.07 : 1 / Math.max(dt, 1e-3); step(dt); }
+  if (layoutDirty && sim.state !== 'running') layoutDirty = false;
+  render();
+  requestAnimationFrame(loop);
+}
+setState('idle'); resize(); renderReports(); requestAnimationFrame(loop);
+
+// Tự START một lần khi demo xuất hiện trên màn hình
+let autoStarted = false;
+new IntersectionObserver(es => { es.forEach(e => { if (e.isIntersecting && !autoStarted && sim.state === 'idle') { autoStarted = true; btnStart.click(); } }); }, { threshold: 0.35 }).observe(app);
+})();
+</script>
+</body>
+</html>
